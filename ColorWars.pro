@@ -33,11 +33,14 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
         src/honeycomb.cpp \
         src/main.cpp \
-        src/mainwindow.cpp
+        src/mainwindow.cpp \
+    src/board.cpp
 
 HEADERS += \
         include/honeycomb.h \
-        include/mainwindow.h
+        include/mainwindow.h \
+    include/globals.h \
+    include/board.h
 
 # Specify Build settings.
 

@@ -2,7 +2,7 @@
 #define _HONEYCOMB_H
 
 #include <QPainter>
-#include <math.h>
+#include "include/globals.h"
 
 #if !defined(_CUSTOM_TYPES_SET)
 typedef unsigned char byte;
@@ -27,7 +27,6 @@ typedef unsigned long long u64;
 #define HEX_HALF_WIDTH  (static_cast<float>(0.864f / 1.0f))
 #define _HEX_RATIOS
 #endif // #if !defined(_HEX_RATIOS)
-
 
 #if !defined(_CELL_COLORS)
 #define _CELL_COLORS
@@ -121,13 +120,20 @@ public:
     // Workers.
     bool Draw(QPainter *pPainter = nullptr);
 
+    bool PointInComb(const QPoint& aPt);
+
+    bool CombIsAllColor(ECellColors aeClr);
+
     // Getters.
     bool IsInitialized();
 
     float GetCellSize();
+    float GetCombSize();
+
     const QPointF& GetPosition();
 
     CCell* GetCells();
+    CCell* GetCellNotColor(ECellColors aeClr);
 
     // Setters.
     void SetCellSize(const float anSize);

@@ -261,6 +261,40 @@ bool CHoneyComb::Draw(QPainter *pPainter)
     return bSuccess;
 }
 
+bool CHoneyComb::PointInComb(const QPoint &aPt)
+{
+    bool bSuccess = false;
+
+    if (IsInitialized())
+    {
+        for (CCell* pIter = mpCells; nullptr != pIter && !bSuccess; ++pIter)
+        {
+            bSuccess = pIter->PointInHex(aPt);
+        }
+    }
+
+    return bSuccess;
+}
+
+bool CHoneyComb::CombIsAllColor(ECellColors aeClr)
+{
+    bool bSuccess = true;
+
+    if (IsInitialized())
+    {
+        for (CCell* pIter = mpCells; nullptr != pIter && bSuccess; ++pIter)
+        {
+            if ((*pIter).GetColor() != aeClr)
+            {
+                bSuccess = false;
+                break;
+            }
+        }
+    }
+
+    return bSuccess;
+}
+
 bool CHoneyComb::IsInitialized()
 {
     if (nullptr != mpCells && 0 < mnCellSize)
@@ -276,6 +310,11 @@ float CHoneyComb::GetCellSize()
     return mnCellSize;
 }
 
+float CHoneyComb::GetCombSize()
+{
+    return static_cast<float>(mnCellSize * c_nCellCombRatio);
+}
+
 const QPointF& CHoneyComb::GetPosition()
 {
     return mPosition;
@@ -284,6 +323,25 @@ const QPointF& CHoneyComb::GetPosition()
 CCell* CHoneyComb::GetCells()
 {
     return mpCells;
+}
+
+CCell* CHoneyComb::GetCellNotColor(ECellColors aeClr)
+{
+    CCell* pCell = nullptr;
+
+    if (IsInitialized())
+    {
+        for (CCell* pIter = mpCells; nullptr != pIter; ++pIter)
+        {
+            if ((*pIter).GetColor() != aeClr)
+            {
+                pCell = pIter;
+                break;
+            }
+        }
+    }
+
+    return pCell;
 }
 
 void CHoneyComb::SetCellSize(const float anSize)
@@ -316,7 +374,7 @@ void CHoneyComb::RecalcPositions()
          */
 
         // Simple variable to help us track half-height of the polygon.
-        const float c_nCombSize = static_cast<float>(mnCellSize * c_nCellCombRatio);
+        const float c_nCombSize = GetCombSize();
         const float c_nHalfWidth = c_nCombSize / 2.0f;
 
         // Begin calculating the points (clockwise, starting at top).
