@@ -312,7 +312,7 @@ float CHoneyComb::GetCellSize()
 
 float CHoneyComb::GetCombSize()
 {
-    return static_cast<float>(mnCellSize * c_nCellCombRatio);
+    return static_cast<float>(mnCellSize * CELL_COMB_RATIO);
 }
 
 const QPointF& CHoneyComb::GetPosition()

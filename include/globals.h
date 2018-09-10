@@ -28,6 +28,7 @@ typedef unsigned long long u64;
 #define HEX_LONG_SHORT  (static_cast<float>(1.0f / 2.0f))
 #define HEX_SHORT_START  (static_cast<float>(1.0f / 4.0f))
 #define HEX_HALF_WIDTH  (static_cast<float>(0.864f / 1.0f))
+#define CELL_COMB_RATIO (1.71875f) //!< This is pulled from "docs/honeycomb_dissection.png". That is the value of 220/128.
 #define _HEX_RATIOS
 #endif // #if !defined(_HEX_RATIOS)
 

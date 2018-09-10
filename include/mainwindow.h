@@ -6,14 +6,14 @@
 #include <QPainter>
 #include <QAction>
 
-#include "include/honeycomb.h"
+#include "include/board.h"
 
 class CMainWindow : public QMainWindow
 {
     Q_OBJECT
 
 public:
-    explicit CMainWindow(QWidget *parent = 0);
+    explicit CMainWindow(QWidget *parent = nullptr);
     ~CMainWindow();
 
 protected:

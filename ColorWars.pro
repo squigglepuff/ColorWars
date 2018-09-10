@@ -11,7 +11,7 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 # Enable C++14
 CONFIG(!c++14): CONFIG += c++14
 
-TARGET = hexagon_test
+TARGET = ColorWars
 TEMPLATE = app
 
 # Versioning (use UNIX-style versioning)

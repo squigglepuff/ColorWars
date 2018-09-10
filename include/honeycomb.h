@@ -105,7 +105,6 @@ class CHoneyComb
 {
     // Constants!
     const u32 c_iMaxCells = (NUM_HEX_VERTS+1); //!< Maxium number of cells for a honeycomb. We add 1 as honeycombs have a center cell.
-    const float c_nCellCombRatio = 1.71875f; //!< This is pulled from "docs/honeycomb_dissection.png". That is the value of 220/128.
 
 public:
     CHoneyComb();
