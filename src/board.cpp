@@ -72,7 +72,7 @@ void CBoard::Create(u32 uCellSz, QPointF aqCenter)
         for (u32 iLyrIdx = 0; iLyrIdx < miSize; ++iLyrIdx)
         {
             // Add the new combs.
-            std::vector<QPointF> vLayerPos = CalcTessPos(qStartPos, iLyrIdx, uCellSz);
+            std::vector<QPointF> vLayerPos = CalcTessPos(qStartPos, iLyrIdx, uCellSz, nTessSz);
 
             qInfo("Positioning %lu honeycombs...", vLayerPos.size());
             for (std::vector<QPointF>::iterator pPtIter = vLayerPos.begin(); pPtIter != vLayerPos.end(); ++pPtIter)
@@ -80,19 +80,24 @@ void CBoard::Create(u32 uCellSz, QPointF aqCenter)
                 CHoneyComb* pTmpComb = new CHoneyComb();
                 pTmpComb->SetCellSize(uCellSz);
                 pTmpComb->SetPosition((*pPtIter));
-                pTmpComb->SetCombColor(static_cast<ECellColors>(eClr));
+
+                // Colorize only the last layer.
+                if ((miSize-1) == iLyrIdx)
+                {
+                    pTmpComb->SetCombColor(static_cast<ECellColors>(eClr));
+                    ++eClr;
+                    if (static_cast<u32>(Cell_Pink) <= eClr) { eClr = static_cast<u32>(Cell_Red); }
+                }
+
                 mpBoardCombs.push_back(pTmpComb);
-
-                ++eClr;
-                if (static_cast<u32>(Comb_Mixed) == eClr) { eClr = static_cast<u32>(Cell_Red); }
             }
-
-            // Update the tessellation size.
-            nTessSz = (nTessSz * TESS_NEAR_TO_FAR);
 
             // Update the starting position.
             nX = qStartPos.x() + (nTessSz * TESS_X_SHIFT);
-            nY = qStartPos.y() + (nTessSz * TESS_Y_SHIFT);
+            nY = qStartPos.y() - (nTessSz * TESS_Y_SHIFT);
+
+            // Update the tessellation size.
+            nTessSz = (nTessSz * TESS_NEAR_TO_FAR);
 
             qStartPos.setX(nX);
             qStartPos.setY(nY);
@@ -294,11 +299,11 @@ void CBoard::SetBoardSize(u32 uSz)
  * \param iLayerIdx - The layer index we're at.
  * \return Pointer which references a heap-allocated array of QPointF references or nullptr upon error.
  */
-std::vector<QPointF> CBoard::CalcTessPos(QPointF& aStart, u32 iLayerIdx, u32 uCellSz)
+std::vector<QPointF> CBoard::CalcTessPos(QPointF& aStart, u32 iLayerIdx, u32 uCellSz, u32 uTessLegLen)
 {
     const u32 c_uCellRadius = uCellSz / 2;
     const float c_nCombSize = static_cast<float>(c_uCellRadius * CELL_COMB_RATIO);
-    const float c_nCircumRadius = (c_nCombSize * TESS_COMBSZ_TO_TESSSZ);
+    const float c_nCombCircumRadius = (c_nCombSize * TESS_COMBSZ_TO_TESSSZ);
     const float c_nDegreePerAngle = 180.0f / 3.0f; // Should be 60.0f
     const u32 c_iNumPoints = NUM_HEX_VERTS * (iLayerIdx + 1);
 
@@ -308,30 +313,34 @@ std::vector<QPointF> CBoard::CalcTessPos(QPointF& aStart, u32 iLayerIdx, u32 uCe
 
     // Create the array.
     std::vector<QPointF> mpPointArr;
+    mpPointArr.push_back(QPointF(nX, nY));
 
     // Calculate the next position.
-    float nNxtVertRad = static_cast<float>((nTheta - TESS_ROTATION) * (M_PI / 180.0f));
-    float nNxtVertX = c_nCircumRadius * sin(nNxtVertRad);
-    float nNxtVertY = c_nCircumRadius * cos(nNxtVertRad);
+    float nThetaRad = static_cast<float>((nTheta - TESS_ROTATION) * (M_PI / 180.0f));
+    float nNxtVertX = uTessLegLen * sin(nThetaRad);
+    float nNxtVertY = uTessLegLen * cos(nThetaRad);
 
-    // Begin calculating the points (clockwise, starting at top).
+    // Calculate the "current" position.
+    float nXDelta = c_nCombCircumRadius * sin(nThetaRad);
+    float nYDelta = c_nCombCircumRadius * cos(nThetaRad);
+
+    // Begin calculating the points (counter-clockwise, starting at top).
     //!\NOTE: Our hexagons have the long-leg vertical, meaning they're pointed at the top. (height > width)
-    for (size_t iIdx = 0; c_iNumPoints > iIdx; ++iIdx)
+    for (size_t iIdx = 1; c_iNumPoints > iIdx; ++iIdx)
     {
         // Set the comb position.
-        mpPointArr.push_back(QPointF(nX, nY));
+        mpPointArr.push_back(QPointF(nX + nXDelta, nY + nYDelta));
 
-        // Calculate the next position.
-        float nThetaRad = static_cast<float>((nTheta - TESS_ROTATION) * (M_PI / 180.0f));
-        float nXDelta = (c_nCircumRadius * sin(nThetaRad)) / (iLayerIdx + 1);
-        float nYDelta = (c_nCircumRadius * cos(nThetaRad)) / (iLayerIdx + 1);
-
-        // Add both.
-        nX += nXDelta;
-        nY += nYDelta;
-
-        if (nXDelta == nNxtVertX && nYDelta == nNxtVertY)
+        if (floor(nXDelta) <= floor(nNxtVertX) + 2 &&
+            floor(nXDelta) >= floor(nNxtVertX) - 2 &&
+            floor(nYDelta) <= floor(nNxtVertY) + 2 &&
+            floor(nYDelta) >= floor(nNxtVertY) - 2)
         {
+            // Add both.
+            nX += nXDelta;
+            nY += nYDelta;
+
+            // Update theta.
             nTheta += c_nDegreePerAngle;
             if (nTheta >= MAX_DEGREE)
             {
@@ -339,9 +348,19 @@ std::vector<QPointF> CBoard::CalcTessPos(QPointF& aStart, u32 iLayerIdx, u32 uCe
             }
 
             // Recalculate the next vertex.
-            nNxtVertRad = static_cast<float>((nTheta - TESS_ROTATION) * (M_PI / 180.0f));
-            nNxtVertX = c_nCircumRadius * sin(nNxtVertRad);
-            nNxtVertY = c_nCircumRadius * cos(nNxtVertRad);
+            nThetaRad = static_cast<float>((nTheta - TESS_ROTATION) * (M_PI / 180.0f));
+            nNxtVertX = uTessLegLen * sin(nThetaRad);
+            nNxtVertY = uTessLegLen * cos(nThetaRad);
+
+            // Re-Calculate the next position.
+            nXDelta = c_nCombCircumRadius * sin(nThetaRad);
+            nYDelta = c_nCombCircumRadius * cos(nThetaRad);
+        }
+        else
+        {
+            // Calculate the next position.
+            nXDelta += c_nCombCircumRadius * sin(nThetaRad);
+            nYDelta += c_nCombCircumRadius * cos(nThetaRad);
         }
     }
 

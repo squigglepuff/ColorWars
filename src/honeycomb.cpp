@@ -58,7 +58,7 @@ bool CCell::Draw(QPainter *pPainter)
             float nY = mPosition.y() - c_nCircumRadius;
             float nTheta = static_cast<float>(MAX_DEGREE - c_nDegreePerAngle); // We start with a negative degree.
 
-            // Begin calculating the points (clockwise, starting at top).
+            // Begin calculating the points (counter-clockwise, starting at top).
             //!\NOTE: Our hexagons have the long-leg vertical, meaning they're pointed at the top. (height > width)
             for (size_t iIdx = 0; NUM_HEX_VERTS > iIdx; ++iIdx)
             {
@@ -410,7 +410,7 @@ void CHoneyComb::RecalcPositions()
 
         nX -= c_nCircumRadius;
 
-        // Begin calculating the points (clockwise, starting at top).
+        // Begin calculating the points (counter-clockwise, starting at top).
         //!\NOTE: Our hexagons have the long-leg vertical, meaning they're pointed at the top. (height > width)
         for (size_t iIdx = 1; (NUM_HEX_VERTS+1) > iIdx; ++iIdx)
         {
