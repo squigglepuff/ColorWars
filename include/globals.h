@@ -34,11 +34,12 @@ typedef unsigned long long u64;
 
 #if !defined(_TESS_RATIOS)
 #define _TESS_RATIOS
-#define TESS_COMBSZ_TO_TESSSZ (static_cast<float>(2.6864f / 1.0f))
+#define TESS_COMBSZ_TO_TESSSZ (static_cast<float>(2.6542f / 1.0f))
 #define TESS_NEAR_SIDE (static_cast<float>(2.308f / 1.0f))
 #define TESS_NEAR_TO_FAR (static_cast<float>(1.9932f / 1.0f))
-#define TESS_X_SHIFT (static_cast<float>(0.1895f / 1.0f))
-#define TESS_Y_SHIFT (static_cast<float>(0.9814f / 1.0f))
+#define TESS_X_SHIFT (static_cast<float>(0.1795f / 1.0f))
+#define TESS_Y_SHIFT (static_cast<float>(0.9714f / 1.0f))
+#define TESS_ROTATION (10.929488f) //!< This is calculated using the values in "docs/tessellation_far_dissection.png". It's the value of tan-1(112/580).
 #endif  // #if !defined(_TESS_RATIOS)
 
 #if !defined(M_PI)

@@ -9,7 +9,7 @@ CMainWindow::CMainWindow(QWidget *parent) : QMainWindow(parent)
 
     // Setup the board.
     mpBoard = new CBoard();
-    mpBoard->SetBoardSize(1);
+    mpBoard->SetBoardSize(2);
     mpBoard->Create(64, qCenter);
 
     // Set the window properties.

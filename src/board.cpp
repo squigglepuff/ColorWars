@@ -296,9 +296,9 @@ void CBoard::SetBoardSize(u32 uSz)
  */
 std::vector<QPointF> CBoard::CalcTessPos(QPointF& aStart, u32 iLayerIdx, u32 uCellSz)
 {
-    // Simple variable to help us track half-height of the polygon.
-    const float c_nFullCellSz = uCellSz * 2.0f;
-    const float c_nCircumRadius = static_cast<float>(c_nFullCellSz * CELL_COMB_RATIO);
+    const u32 c_uCellRadius = uCellSz / 2;
+    const float c_nCombSize = static_cast<float>(c_uCellRadius * CELL_COMB_RATIO);
+    const float c_nCircumRadius = (c_nCombSize * TESS_COMBSZ_TO_TESSSZ);
     const float c_nDegreePerAngle = 180.0f / 3.0f; // Should be 60.0f
     const u32 c_iNumPoints = NUM_HEX_VERTS * (iLayerIdx + 1);
 
@@ -310,9 +310,9 @@ std::vector<QPointF> CBoard::CalcTessPos(QPointF& aStart, u32 iLayerIdx, u32 uCe
     std::vector<QPointF> mpPointArr;
 
     // Calculate the next position.
-    float nNxtVertRad = static_cast<float>(nTheta * (M_PI / 180.0f));
-    float nNxtVertX = c_nCircumRadius * cos(nNxtVertRad);
-    float nNxtVertY = c_nCircumRadius * sin(nNxtVertRad);
+    float nNxtVertRad = static_cast<float>((nTheta - TESS_ROTATION) * (M_PI / 180.0f));
+    float nNxtVertX = c_nCircumRadius * sin(nNxtVertRad);
+    float nNxtVertY = c_nCircumRadius * cos(nNxtVertRad);
 
     // Begin calculating the points (clockwise, starting at top).
     //!\NOTE: Our hexagons have the long-leg vertical, meaning they're pointed at the top. (height > width)
@@ -322,9 +322,9 @@ std::vector<QPointF> CBoard::CalcTessPos(QPointF& aStart, u32 iLayerIdx, u32 uCe
         mpPointArr.push_back(QPointF(nX, nY));
 
         // Calculate the next position.
-        float nThetaRad = static_cast<float>(nTheta * (M_PI / 180.0f));
-        float nXDelta = (c_nCircumRadius * cos(nThetaRad)) / (iLayerIdx + 1);
-        float nYDelta = (c_nCircumRadius * sin(nThetaRad)) / (iLayerIdx + 1);
+        float nThetaRad = static_cast<float>((nTheta - TESS_ROTATION) * (M_PI / 180.0f));
+        float nXDelta = (c_nCircumRadius * sin(nThetaRad)) / (iLayerIdx + 1);
+        float nYDelta = (c_nCircumRadius * cos(nThetaRad)) / (iLayerIdx + 1);
 
         // Add both.
         nX += nXDelta;
@@ -339,9 +339,9 @@ std::vector<QPointF> CBoard::CalcTessPos(QPointF& aStart, u32 iLayerIdx, u32 uCe
             }
 
             // Recalculate the next vertex.
-            nNxtVertRad = static_cast<float>(nTheta * (M_PI / 180.0f));
-            nNxtVertX = c_nCircumRadius * cos(nNxtVertRad);
-            nNxtVertY = c_nCircumRadius * sin(nNxtVertRad);
+            nNxtVertRad = static_cast<float>((nTheta - TESS_ROTATION) * (M_PI / 180.0f));
+            nNxtVertX = c_nCircumRadius * sin(nNxtVertRad);
+            nNxtVertY = c_nCircumRadius * cos(nNxtVertRad);
         }
     }
 
