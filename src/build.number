@@ -1,0 +1,6 @@
+#!/bin/bash
+number=8;
+number=$((number+1));
+echo "$number";
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
+sed -r -i 's/^number=[0-9]+;$/number='$number';/g' "$DIR/build.number"

@@ -1,41 +1,26 @@
 #include "include/board.h"
 
-CBoard::CBoard() : mpBoardCombs{nullptr}, miSize{2}
+CBoard::CBoard() : miSize{2}
 {
     // Intentionally left blank.
 }
 
-CBoard::CBoard(const CBoard& aCls) : mpBoardCombs{nullptr}, miSize{aCls.miSize}
+CBoard::CBoard(const CBoard& aCls) : miSize{aCls.miSize}
 {
-    if (nullptr != aCls.mpBoardCombs)
+    if (!aCls.mpBoardCombs.empty())
     {
-        const size_t c_uNumItems = SZ(aCls.mpBoardCombs);
-
-        mpBoardCombs = new CHoneyComb*[c_uNumItems];
-        for (size_t uIdx = 0; uIdx < c_uNumItems; ++uIdx)
-        {
-            if (nullptr != aCls.mpBoardCombs[uIdx])
-            {
-                mpBoardCombs[uIdx] = new CHoneyComb();
-                memcpy(mpBoardCombs[uIdx], aCls.mpBoardCombs[uIdx], sizeof(CHoneyComb));
-            }
-        }
+        mpBoardCombs = aCls.mpBoardCombs;
     }
 }
 
 CBoard::~CBoard()
 {
-    if (nullptr != mpBoardCombs)
+    for (CombIterator pIter = mpBoardCombs.begin(); pIter != mpBoardCombs.end(); ++pIter)
     {
-        for (CombIterator pIter = mpBoardCombs; nullptr != pIter; ++pIter)
+        if (nullptr != *pIter)
         {
-            if (nullptr != *pIter)
-            {
-                delete (*pIter);
-            }
+            delete (*pIter);
         }
-
-        delete[] mpBoardCombs;
     }
 }
 
@@ -44,18 +29,7 @@ CBoard& CBoard::operator =(const CBoard& aCls)
     if (this != &aCls)
     {
         miSize = aCls.miSize;
-
-        const size_t c_uNumItems = SZ(aCls.mpBoardCombs);
-
-        mpBoardCombs = new CHoneyComb*[c_uNumItems];
-        for (size_t uIdx = 0; uIdx < c_uNumItems; ++uIdx)
-        {
-            if (nullptr != aCls.mpBoardCombs[uIdx])
-            {
-                mpBoardCombs[uIdx] = new CHoneyComb();
-                memcpy(mpBoardCombs[uIdx], aCls.mpBoardCombs[uIdx], sizeof(CHoneyComb));
-            }
-        }
+        mpBoardCombs = aCls.mpBoardCombs;
     }
 
     return *this;
@@ -67,83 +41,61 @@ CBoard& CBoard::operator =(const CBoard& aCls)
  * This method is used to "create" a new board. This invloves heap-allocating (if needed) new honeycombs and tessellating them accordingly.
  *
  * \param uCellSz - This is the size of the cells for the combs.
+ * \param aqCenter - The center of the board.
  */
 void CBoard::Create(u32 uCellSz, QPointF aqCenter)
 {
-    if (nullptr != mpBoardCombs)
+    const u32 c_uCellRadius = uCellSz / 2;
+    const float c_nCombSize = static_cast<float>(c_uCellRadius * CELL_COMB_RATIO);
+    float nTessSz = (c_nCombSize * TESS_COMBSZ_TO_TESSSZ);
+
+    // Explicitly set the center comb.
+    QPointF qStartPos = aqCenter;
+
+    CHoneyComb* pTmpComb = new CHoneyComb();
+    pTmpComb->SetCellSize(uCellSz);
+    pTmpComb->SetPosition(qStartPos);
+    mpBoardCombs.push_back(pTmpComb);
+
+    if (miSize > 0)
     {
-        // Get this comb's position and size.
-        const float nCombSize = static_cast<float>(uCellSz * CELL_COMB_RATIO);
-        float nTessSz = (nCombSize * TESS_COMBSZ_TO_TESSSZ);
+        // Set the starting position of the first layer.
+        float nX = qStartPos.x() + (nTessSz * TESS_X_SHIFT);
+        float nY = qStartPos.y() - (nTessSz * TESS_Y_SHIFT);
 
-        // Set the center comb.
-        float nX = static_cast<float>(aqCenter.x());
-        float nY = static_cast<float>(aqCenter.y());
-        u32 uCombIdx = 0;
+        qStartPos.setX(nX);
+        qStartPos.setY(nY);
 
-        if (nullptr == mpBoardCombs[uCombIdx]) { mpBoardCombs[uCombIdx] = new CHoneyComb(); }
-        mpBoardCombs[uCombIdx]->SetCellSize(uCellSz);
-        mpBoardCombs[uCombIdx]->SetPosition(QPointF(nX, nY));
-        ++uCombIdx;
+        u32 eClr = static_cast<u32>(Cell_Red);
 
-        // Now, iterate over the combs and collect all 6 neighbors (if possible).
-        for (u32 uLayerIdx = 0; miSize > uLayerIdx; ++uLayerIdx)
+        // Iterate over the layers, adding the appropriate number of combs.
+        for (u32 iLyrIdx = 0; iLyrIdx < miSize; ++iLyrIdx)
         {
-            // Setup our position variables.
-            // Top position-vertex.
-            nX = nX + (nTessSz * TESS_X_SHIFT);
-            nY = nY - (nTessSz * TESS_Y_SHIFT);
+            // Add the new combs.
+            std::vector<QPointF> vLayerPos = CalcTessPos(qStartPos, iLyrIdx, uCellSz);
 
-            if (nullptr == mpBoardCombs[uCombIdx]) { mpBoardCombs[uCombIdx] = new CHoneyComb(); }
-            mpBoardCombs[uCombIdx]->SetCellSize(uCellSz);
-            mpBoardCombs[uCombIdx]->SetPosition(QPointF(nX, nY));
-            ++uCombIdx;
+            qInfo("Positioning %lu honeycombs...", vLayerPos.size());
+            for (std::vector<QPointF>::iterator pPtIter = vLayerPos.begin(); pPtIter != vLayerPos.end(); ++pPtIter)
+            {
+                CHoneyComb* pTmpComb = new CHoneyComb();
+                pTmpComb->SetCellSize(uCellSz);
+                pTmpComb->SetPosition((*pPtIter));
+                pTmpComb->SetCombColor(static_cast<ECellColors>(eClr));
+                mpBoardCombs.push_back(pTmpComb);
 
-            // Top-right position-vertex.
-            nX += (nTessSz * HEX_LONG_SHORT) * HEX_HALF_WIDTH;
-            nY += (nTessSz * HEX_SHORT_START);
-
-            if (nullptr == mpBoardCombs[uCombIdx]) { mpBoardCombs[uCombIdx] = new CHoneyComb(); }
-            mpBoardCombs[uCombIdx]->SetCellSize(uCellSz);
-            mpBoardCombs[uCombIdx]->SetPosition(QPointF(nX, nY));
-            ++uCombIdx;
-
-            // Bottom-right position-vertex.
-            nY += (nTessSz * HEX_LONG_SHORT);
-
-            if (nullptr == mpBoardCombs[uCombIdx]) { mpBoardCombs[uCombIdx] = new CHoneyComb(); }
-            mpBoardCombs[uCombIdx]->SetCellSize(uCellSz);
-            mpBoardCombs[uCombIdx]->SetPosition(QPointF(nX, nY));
-            ++uCombIdx;
-
-            // Bottom position-vertex.
-            nX -= (nTessSz * HEX_LONG_SHORT) * HEX_HALF_WIDTH;
-            nY += (nTessSz * HEX_SHORT_START);
-
-            if (nullptr == mpBoardCombs[uCombIdx]) { mpBoardCombs[uCombIdx] = new CHoneyComb(); }
-            mpBoardCombs[uCombIdx]->SetCellSize(uCellSz);
-            mpBoardCombs[uCombIdx]->SetPosition(QPointF(nX, nY));
-            ++uCombIdx;
-
-            // Bottom-left position-vertex.
-            nX -= (nTessSz * HEX_LONG_SHORT) * HEX_HALF_WIDTH;
-            nY -= (nTessSz * HEX_SHORT_START);
-
-            if (nullptr == mpBoardCombs[uCombIdx]) { mpBoardCombs[uCombIdx] = new CHoneyComb(); }
-            mpBoardCombs[uCombIdx]->SetCellSize(uCellSz);
-            mpBoardCombs[uCombIdx]->SetPosition(QPointF(nX, nY));
-            ++uCombIdx;
-
-            // Top-left position-vertex.
-            nY -= (nTessSz * HEX_LONG_SHORT);
-
-            if (nullptr == mpBoardCombs[uCombIdx]) { mpBoardCombs[uCombIdx] = new CHoneyComb(); }
-            mpBoardCombs[uCombIdx]->SetCellSize(uCellSz);
-            mpBoardCombs[uCombIdx]->SetPosition(QPointF(nX, nY));
-            ++uCombIdx;
+                ++eClr;
+                if (static_cast<u32>(Comb_Mixed) == eClr) { eClr = static_cast<u32>(Cell_Red); }
+            }
 
             // Update the tessellation size.
             nTessSz = (nTessSz * TESS_NEAR_TO_FAR);
+
+            // Update the starting position.
+            nX = qStartPos.x() + (nTessSz * TESS_X_SHIFT);
+            nY = qStartPos.y() + (nTessSz * TESS_Y_SHIFT);
+
+            qStartPos.setX(nX);
+            qStartPos.setY(nY);
         }
     }
 }
@@ -155,14 +107,11 @@ void CBoard::Create(u32 uCellSz, QPointF aqCenter)
  */
 void CBoard::Destroy()
 {
-    if (nullptr != mpBoardCombs)
+    for (CombIterator pIter = mpBoardCombs.begin(); pIter != mpBoardCombs.end(); ++pIter)
     {
-        for (CombIterator pIter = mpBoardCombs; nullptr != pIter; ++pIter)
+        if (nullptr != *pIter)
         {
-            if (nullptr != *pIter)
-            {
-                delete (*pIter);
-            }
+            delete (*pIter);
         }
     }
 }
@@ -175,9 +124,15 @@ void CBoard::Destroy()
  */
 void CBoard::Draw(QPainter *pPainter)
 {
-    if (nullptr != pPainter && nullptr != mpBoardCombs)
+    if (nullptr != pPainter)
     {
-        // code
+        for (CombIterator pIter = mpBoardCombs.begin(); pIter != mpBoardCombs.end(); ++pIter)
+        {
+            if (nullptr != (*pIter))
+            {
+                (*pIter)->Draw(pPainter);
+            }
+        }
     }
 }
 
@@ -202,7 +157,7 @@ u32 CBoard::GetBoardSize()
  */
 CombIterator CBoard::GetCombIterator()
 {
-    return mpBoardCombs;
+    return mpBoardCombs.begin();
 }
 
 /*!
@@ -215,7 +170,7 @@ CombIterator CBoard::GetCombIterator()
  */
 CHoneyComb* CBoard::GetComb(CombIterator pIter)
 {
-    return (nullptr != pIter) ? (*pIter) : nullptr;
+    return (*pIter);
 }
 
 /*!
@@ -228,7 +183,7 @@ CHoneyComb* CBoard::GetComb(CombIterator pIter)
  */
 CHoneyComb* CBoard::GetComb(u32 uCombIdx)
 {
-    return (uCombIdx < SZ(mpBoardCombs)) ? mpBoardCombs[uCombIdx] : nullptr;
+    return (uCombIdx < mpBoardCombs.size()) ? mpBoardCombs[uCombIdx] : nullptr;
 }
 
 /*!
@@ -241,10 +196,10 @@ CHoneyComb* CBoard::GetComb(u32 uCombIdx)
  * \param pComb - Honeycomb to gather the neighbors of.
  * \return CHoneyComb pointer array of the neighbors, or nullptr if no neighbors.
  */
-CombIterator CBoard::GetNeighbors(CHoneyComb *pComb)
+CHoneyComb** CBoard::GetNeighbors(CHoneyComb *pComb)
 {
     CHoneyComb** pvNeighbors = nullptr; // Maximum of 6 neighbors.
-    if (nullptr != pComb && nullptr != mpBoardCombs)
+    if (nullptr != pComb)
     {
         pvNeighbors = new CHoneyComb*[NUM_HEX_VERTS]; // Maximum of 6 neighbors.
         if (nullptr != pvNeighbors)
@@ -255,7 +210,7 @@ CombIterator CBoard::GetNeighbors(CHoneyComb *pComb)
 
             // Now, iterate over the combs and collect all 6 neighbors (if possible).
             u32 iCombIdx = 0;
-            for (CombIterator pIter = GetCombIterator(); nullptr != pIter; ++pIter)
+            for (CombIterator pIter = GetCombIterator(); pIter != mpBoardCombs.end(); ++pIter)
             {
                 // Setup our collision variables.
                 // Top collision-vertex.
@@ -300,7 +255,7 @@ CombIterator CBoard::GetNeighbors(CHoneyComb *pComb)
  * \param uCombIdx - The index of the comb to gather the neighbors of.
  * \return CHoneyComb pointer array of the neighbors, or nullptr if no neighbors.
  */
-CombIterator CBoard::GetNeighbors(u32 uCombIdx)
+CHoneyComb** CBoard::GetNeighbors(u32 uCombIdx)
 {
     return GetNeighbors(GetComb(uCombIdx));
 }
@@ -335,15 +290,60 @@ void CBoard::SetBoardSize(u32 uSz)
  *      Set point position to (x,y)
  *  done
  *
- * \note This function returns some heap-allocated data that is does NOT take ownership of! It's up to the caller to free this memory!
- *
  * \param aStart - The start position (should be top-most comb).
  * \param iLayerIdx - The layer index we're at.
  * \return Pointer which references a heap-allocated array of QPointF references or nullptr upon error.
  */
-QPointF* CBoard::CalcTessPos(QPointF& aStart, u32 iLayerIdx)
+std::vector<QPointF> CBoard::CalcTessPos(QPointF& aStart, u32 iLayerIdx, u32 uCellSz)
 {
-    QPointF *mpPointArr = nullptr;
+    // Simple variable to help us track half-height of the polygon.
+    const float c_nFullCellSz = uCellSz * 2.0f;
+    const float c_nCircumRadius = static_cast<float>(c_nFullCellSz * CELL_COMB_RATIO);
+    const float c_nDegreePerAngle = 180.0f / 3.0f; // Should be 60.0f
+    const u32 c_iNumPoints = NUM_HEX_VERTS * (iLayerIdx + 1);
+
+    float nX = aStart.x();
+    float nY = aStart.y();
+    float nTheta = static_cast<float>(MAX_DEGREE - c_nDegreePerAngle); // We start with a negative degree.
+
+    // Create the array.
+    std::vector<QPointF> mpPointArr;
+
+    // Calculate the next position.
+    float nNxtVertRad = static_cast<float>(nTheta * (M_PI / 180.0f));
+    float nNxtVertX = c_nCircumRadius * cos(nNxtVertRad);
+    float nNxtVertY = c_nCircumRadius * sin(nNxtVertRad);
+
+    // Begin calculating the points (clockwise, starting at top).
+    //!\NOTE: Our hexagons have the long-leg vertical, meaning they're pointed at the top. (height > width)
+    for (size_t iIdx = 0; c_iNumPoints > iIdx; ++iIdx)
+    {
+        // Set the comb position.
+        mpPointArr.push_back(QPointF(nX, nY));
+
+        // Calculate the next position.
+        float nThetaRad = static_cast<float>(nTheta * (M_PI / 180.0f));
+        float nXDelta = (c_nCircumRadius * cos(nThetaRad)) / (iLayerIdx + 1);
+        float nYDelta = (c_nCircumRadius * sin(nThetaRad)) / (iLayerIdx + 1);
+
+        // Add both.
+        nX += nXDelta;
+        nY += nYDelta;
+
+        if (nXDelta == nNxtVertX && nYDelta == nNxtVertY)
+        {
+            nTheta += c_nDegreePerAngle;
+            if (nTheta >= MAX_DEGREE)
+            {
+                nTheta -= MAX_DEGREE;
+            }
+
+            // Recalculate the next vertex.
+            nNxtVertRad = static_cast<float>(nTheta * (M_PI / 180.0f));
+            nNxtVertX = c_nCircumRadius * cos(nNxtVertRad);
+            nNxtVertY = c_nCircumRadius * sin(nNxtVertRad);
+        }
+    }
 
     return mpPointArr;
 }

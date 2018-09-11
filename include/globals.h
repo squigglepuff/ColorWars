@@ -41,22 +41,38 @@ typedef unsigned long long u64;
 #define TESS_Y_SHIFT (static_cast<float>(0.9814f / 1.0f))
 #endif  // #if !defined(_TESS_RATIOS)
 
+#if !defined(M_PI)
+#define M_PI (3.14159265359)
+#endif
+
+#if !defined(MAX_DEGREE)
+#define MAX_DEGREE 360.0f
+#endif
+
+#if !defined(VER_MAJOR)
+#define VER_MAJOR 0
+#define VER_MINOR 1
+#define VER_PATCH 0
+#define VER_STAGE "IN-DEV"
+#endif //#if !defined(VER_MAJOR)
+
 // Enumerations.
 #if !defined(_CELL_COLORS)
 #define _CELL_COLORS
 enum ECellColors
 {
-    Cell_White,
-    Cell_Red,
-    Cell_Orange,
-    Cell_Yellow,
-    Cell_Lime,
-    Cell_Green,
-    Cell_Cyan,
-    Cell_Blue,
-    Cell_Purple,
-    Cell_Magenta,
-    Cell_Pink
+    Cell_White = 0xc001,
+    Cell_Red = 0xc002,
+    Cell_Orange = 0xc003,
+    Cell_Yellow = 0xc004,
+    Cell_Lime = 0xc005,
+    Cell_Green = 0xc006,
+    Cell_Cyan = 0xc007,
+    Cell_Blue = 0xc008,
+    Cell_Purple = 0xc009,
+    Cell_Magenta = 0xc00a,
+    Cell_Pink = 0xc00b,
+    Comb_Mixed = 0xcff1 //!< Only used by honeycombs and not individual cells!
 };
 #endif // #if !defined(_CELL_COLORS)
 

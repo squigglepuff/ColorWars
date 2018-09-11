@@ -20,14 +20,8 @@ protected:
     void paintEvent(QPaintEvent *apEvent);
     void contextMenuEvent(QContextMenuEvent *apEvent);
 
-protected slots:
-    void SetHexColor(QAction *apAction);
-
 private:
-    CHoneyComb *mpComb;
-    QList<QAction*> mlActions;
-    QMenu *mpCtxMenu;
-    CCell* mpSelectedCell;
+    CBoard *mpBoard;
 };
 
 #endif // MAINWINDOW_H

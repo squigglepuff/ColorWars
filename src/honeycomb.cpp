@@ -1,12 +1,12 @@
 #include "include/honeycomb.h"
 
 // ================================ Begin CCell Implementation ================================ //
-CCell::CCell() : mnSize{0.0f}, mPosition{QPointF(0.0f,0.0f)}, meClr{Cell_White}
+CCell::CCell() : mbIsValid{false}, mnSize{0.0f}, mPosition{QPointF(0.0f,0.0f)}, meClr{Cell_White}
 {
     // Intentionally left blank.
 }
 
-CCell::CCell(const CCell& aCls) : mnSize{aCls.mnSize}, mPosition{aCls.mPosition}, meClr{aCls.meClr}
+CCell::CCell(const CCell& aCls) : mbIsValid{aCls.mbIsValid}, mnSize{aCls.mnSize}, mPosition{aCls.mPosition}, meClr{aCls.meClr}
 {
     // Intentionally left blank.
 }
@@ -22,6 +22,7 @@ CCell& CCell::operator =(const CCell& aCls)
 {
     if (this != &aCls)
     {
+        mbIsValid = aCls.mbIsValid;
         mnSize = aCls.mnSize;
         mPosition = aCls.mPosition;
         meClr = aCls.meClr;
@@ -35,7 +36,7 @@ bool CCell::Draw(QPainter *pPainter)
     bool bSuccess = false;
     if (nullptr != pPainter)
     {
-        if (!mPosition.isNull() && mnSize > 0.0f)
+        if (mbIsValid)
         {
             /*
              * These values are used in calculations. They're approximates, so accuracy isn't going to happen.
@@ -46,47 +47,40 @@ bool CCell::Draw(QPainter *pPainter)
                     * "half-width" = 0.86 : "short-leg" (0.86:1)
              * Static_cast is more than likely unecessary, we're just doing it to ensure we have floats.
              */
-            // Simple variable to help us track half-height of the polygon.
-            const float c_nHalfHeight = mnSize / 2.0f;
-
             // Instantiate a new set of verticies.
             QPointF pPts[NUM_HEX_VERTS];
             memset(pPts, 0, sizeof(QPointF) * NUM_HEX_VERTS);
 
+            const float c_nCircumRadius = mnSize / 2.0f;
+            const float c_nDegreePerAngle = 180.0f / 3.0f; // Should be 60.0f
+
+            float nX = mPosition.x();
+            float nY = mPosition.y() - c_nCircumRadius;
+            float nTheta = static_cast<float>(MAX_DEGREE - c_nDegreePerAngle); // We start with a negative degree.
+
             // Begin calculating the points (clockwise, starting at top).
             //!\NOTE: Our hexagons have the long-leg vertical, meaning they're pointed at the top. (height > width)
-            float nX = mPosition.x();
-            float nY = mPosition.y() - c_nHalfHeight;
-            pPts[0].setX(nX);
-            pPts[0].setY(nY);
+            for (size_t iIdx = 0; NUM_HEX_VERTS > iIdx; ++iIdx)
+            {
+                // Set the vertex position.
+                pPts[iIdx].setX(nX);
+                pPts[iIdx].setY(nY);
 
-            // Top-right vertex.
-            nX += (mnSize * HEX_LONG_SHORT) * HEX_HALF_WIDTH;
-            nY += (mnSize * HEX_SHORT_START);
-            pPts[1].setX(nX);
-            pPts[1].setY(nY);
+                // Calculate the next position.
+                float nThetaRad = static_cast<float>(nTheta * (M_PI / 180.0f));
+                float nXDelta = c_nCircumRadius * sin(nThetaRad);
+                float nYDelta = c_nCircumRadius * cos(nThetaRad);
 
-            // Bottom-right vertex.
-            nY += (mnSize * HEX_LONG_SHORT);
-            pPts[2].setX(nX);
-            pPts[2].setY(nY);
+                // Subtract both.
+                nX += nXDelta;
+                nY += nYDelta;
 
-            // Bottom vertex.
-            nX -= (mnSize * HEX_LONG_SHORT) * HEX_HALF_WIDTH;
-            nY += (mnSize * HEX_SHORT_START);
-            pPts[3].setX(nX);
-            pPts[3].setY(nY);
-
-            // Bottom-left vertex.
-            nX -= (mnSize * HEX_LONG_SHORT) * HEX_HALF_WIDTH;
-            nY -= (mnSize * HEX_SHORT_START);
-            pPts[4].setX(nX);
-            pPts[4].setY(nY);
-
-            // Top-left vertex.
-            nY -= (mnSize * HEX_LONG_SHORT);
-            pPts[5].setX(nX);
-            pPts[5].setY(nY);
+                nTheta += c_nDegreePerAngle;
+                if (nTheta >= MAX_DEGREE)
+                {
+                    nTheta -= MAX_DEGREE;
+                }
+            }
 
             // Done, now we want to set the painter to draw the hexagon correctly.
             pPainter->setPen(QPen(QBrush(Qt::black), 2.0f));
@@ -163,9 +157,16 @@ ECellColors CCell::GetColor()
     return meClr;
 }
 
+bool CCell::IsValid()
+{
+    return mbIsValid;
+}
+
 void CCell::SetSize(const float anSize)
 {
     mnSize = anSize;
+
+    if (!mPosition.isNull()) { mbIsValid = true; }
 }
 
 void CCell::SetCenter(const QPointF &aqCenter)
@@ -173,6 +174,8 @@ void CCell::SetCenter(const QPointF &aqCenter)
     if (!aqCenter.isNull())
     {
         mPosition = aqCenter;
+
+        if (0.0f < mnSize) { mbIsValid = true; }
     }
 }
 
@@ -181,6 +184,8 @@ void CCell::SetPosition(const QPointF &aqPosition)
     if (!aqPosition.isNull())
     {
         mPosition = aqPosition;
+
+        if (0.0f < mnSize) { mbIsValid = true; }
     }
 }
 
@@ -191,26 +196,20 @@ void CCell::SetColor(ECellColors aeClr)
 // ================================ End CCell Implementation ================================ //
 
 // ================================ Begin CHoneycomb Implementation ================================ //
-CHoneyComb::CHoneyComb() : mnCellSize{0.0f}, mPosition{QPointF(0.0f, 0.0f)}, mpCells{nullptr}
+CHoneyComb::CHoneyComb() : mnCellSize{0.0f}, mPosition{QPointF(0.0f, 0.0f)}, meCombColor{Cell_White}
 {
-    mpCells = new CCell[c_iMaxCells];
+    // Intentionally left blank.
 }
 
-CHoneyComb::CHoneyComb(const CHoneyComb& aCls) : mnCellSize{aCls.mnCellSize}, mPosition{aCls.mPosition}, mpCells{nullptr}
+CHoneyComb::CHoneyComb(const CHoneyComb& aCls) : mnCellSize{aCls.mnCellSize}, mPosition{aCls.mPosition}, mpCells{aCls.mpCells}, meCombColor{aCls.meCombColor}
 {
-    mpCells = new CCell[c_iMaxCells];
-    memcpy(mpCells, aCls.mpCells, (sizeof(CCell) * (c_iMaxCells)));
+    // Intentionally left blank.
 }
 
 CHoneyComb::~CHoneyComb()
 {
     mnCellSize = 0.0f;
     mPosition = QPointF(0.0f, 0.0f);
-
-    if (nullptr != mpCells)
-    {
-        delete[] mpCells;
-    }
 }
 
 CHoneyComb& CHoneyComb::operator =(const CHoneyComb& aCls)
@@ -219,14 +218,8 @@ CHoneyComb& CHoneyComb::operator =(const CHoneyComb& aCls)
     {
         mnCellSize = aCls.mnCellSize;
         mPosition = aCls.mPosition;
-
-        // Sanity: Make sure we have a valid array of cells, if not allocate some.
-        if (nullptr == mpCells)
-        {
-            mpCells = new CCell[c_iMaxCells];
-        }
-
-        memcpy(mpCells, aCls.mpCells, (sizeof(CCell) * (c_iMaxCells)));
+        meCombColor = aCls.meCombColor;
+        mpCells = aCls.mpCells;
     }
 
     return *this;
@@ -242,7 +235,7 @@ CCell& CHoneyComb::operator [](size_t iIdx)
     return mpCells[c_iMaxCells-1];
 }
 
-CCell* CHoneyComb::operator *()
+std::vector<CCell> CHoneyComb::operator *()
 {
     return mpCells;
 }
@@ -252,9 +245,12 @@ bool CHoneyComb::Draw(QPainter *pPainter)
     bool bSuccess = true;
     if (nullptr != pPainter && IsInitialized())
     {
-        for (CCell* pIter = mpCells; nullptr != pIter && bSuccess; ++pIter)
+        for (std::vector<CCell>::iterator pIter = mpCells.begin(); pIter != mpCells.end() && bSuccess; ++pIter)
         {
-            bSuccess = pIter->Draw(pPainter);
+            if ((*pIter).IsValid())
+            {
+                bSuccess = (*pIter).Draw(pPainter);
+            }
         }
     }
 
@@ -267,9 +263,12 @@ bool CHoneyComb::PointInComb(const QPoint &aPt)
 
     if (IsInitialized())
     {
-        for (CCell* pIter = mpCells; nullptr != pIter && !bSuccess; ++pIter)
+        for (std::vector<CCell>::iterator pIter = mpCells.begin(); pIter != mpCells.end() && !bSuccess; ++pIter)
         {
-            bSuccess = pIter->PointInHex(aPt);
+            if ((*pIter).IsValid())
+            {
+                bSuccess = (*pIter).PointInHex(aPt);
+            }
         }
     }
 
@@ -282,12 +281,15 @@ bool CHoneyComb::CombIsAllColor(ECellColors aeClr)
 
     if (IsInitialized())
     {
-        for (CCell* pIter = mpCells; nullptr != pIter && bSuccess; ++pIter)
+        for (std::vector<CCell>::iterator pIter = mpCells.begin(); pIter != mpCells.end() && bSuccess; ++pIter)
         {
-            if ((*pIter).GetColor() != aeClr)
+            if ((*pIter).IsValid())
             {
-                bSuccess = false;
-                break;
+                if ((*pIter).GetColor() != aeClr)
+                {
+                    bSuccess = false;
+                    break;
+                }
             }
         }
     }
@@ -297,7 +299,7 @@ bool CHoneyComb::CombIsAllColor(ECellColors aeClr)
 
 bool CHoneyComb::IsInitialized()
 {
-    if (nullptr != mpCells && 0 < mnCellSize)
+    if (!mPosition.isNull() && 0 < mnCellSize)
     {
         return true;
     }
@@ -320,44 +322,62 @@ const QPointF& CHoneyComb::GetPosition()
     return mPosition;
 }
 
-CCell* CHoneyComb::GetCells()
+std::vector<CCell> CHoneyComb::GetCells()
 {
     return mpCells;
 }
 
-CCell* CHoneyComb::GetCellNotColor(ECellColors aeClr)
+CCell& CHoneyComb::GetCellNotColor(ECellColors aeClr)
 {
-    CCell* pCell = nullptr;
+    CCell* rCell = nullptr;
 
     if (IsInitialized())
     {
-        for (CCell* pIter = mpCells; nullptr != pIter; ++pIter)
+        for (std::vector<CCell>::iterator pIter = mpCells.begin(); pIter != mpCells.end(); ++pIter)
         {
             if ((*pIter).GetColor() != aeClr)
             {
-                pCell = pIter;
+                rCell = &(*pIter);
                 break;
             }
         }
     }
 
-    return pCell;
+    return (*rCell);
+}
+
+ECellColors CHoneyComb::GetCombColor()
+{
+    return meCombColor;
 }
 
 void CHoneyComb::SetCellSize(const float anSize)
 {
     mnCellSize = anSize;
 
-    // (Re)Calculate the positons of the cells.
-    RecalcPositions();
+    if (IsInitialized()) { RecalcPositions(); }
 }
 
 void CHoneyComb::SetPosition(const QPointF& aqPosition)
 {
     mPosition = aqPosition;
 
-    // (Re)Calculate the positons of the cells.
-    RecalcPositions();
+    if (IsInitialized()) { RecalcPositions(); }
+}
+
+void CHoneyComb::SetCombColor(ECellColors aeClr)
+{
+    if (IsInitialized())
+    {
+        for (std::vector<CCell>::iterator pIter = mpCells.begin(); pIter != mpCells.end(); ++pIter)
+        {
+            if ((*pIter).IsValid())
+            {
+                (*pIter).SetColor(aeClr);
+            }
+        }
+        meCombColor = aeClr;
+    }
 }
 
 void CHoneyComb::RecalcPositions()
@@ -375,49 +395,46 @@ void CHoneyComb::RecalcPositions()
 
         // Simple variable to help us track half-height of the polygon.
         const float c_nCombSize = GetCombSize();
-        const float c_nHalfWidth = c_nCombSize / 2.0f;
+        const float c_nCircumRadius = c_nCombSize / 2.0f;
+        const float c_nDegreePerAngle = 180.0f / 3.0f; // Should be 60.0f
+
+        float nX = mPosition.x();
+        float nY = mPosition.y();
+        float nTheta = static_cast<float>(MAX_DEGREE - c_nDegreePerAngle); // We start with a negative degree.
+
+        // Explicitly set the center comb.
+        CCell tmpCell = CCell();
+        tmpCell.SetSize(mnCellSize);
+        tmpCell.SetPosition(QPointF(nX, nY));
+        mpCells.push_back(tmpCell);
+
+        nX -= c_nCircumRadius;
 
         // Begin calculating the points (clockwise, starting at top).
         //!\NOTE: Our hexagons have the long-leg vertical, meaning they're pointed at the top. (height > width)
-        float nX = mPosition.x();
-        float nY = mPosition.y();
+        for (size_t iIdx = 1; (NUM_HEX_VERTS+1) > iIdx; ++iIdx)
+        {
+            // Set the cell position.
+            CCell tmpCell = CCell();
+            tmpCell.SetSize(mnCellSize);
+            tmpCell.SetPosition(QPointF(nX, nY));
+            mpCells.push_back(tmpCell);
 
-        // Center cell [0].
-        mpCells[0].SetSize(mnCellSize);
-        mpCells[0].SetPosition(QPointF(nX, nY));
+            // Calculate the next position.
+            float nThetaRad = static_cast<float>(nTheta * (M_PI / 180.0f));
+            float nXDelta = c_nCircumRadius * cos(nThetaRad);
+            float nYDelta = c_nCircumRadius * sin(nThetaRad);
 
-        // Right Cell [1].
-        nX = nX + c_nHalfWidth;
-        mpCells[1].SetSize(mnCellSize);
-        mpCells[1].SetPosition(QPointF(nX, nY));
+            // Subtract both.
+            nX += nXDelta;
+            nY += nYDelta;
 
-        // Bottom-Right Cell [2].
-        nX = nX - (c_nHalfWidth / 2.0f);
-        nY = nY + (c_nCombSize * HEX_LONG_SHORT) * HEX_HALF_WIDTH;
-        mpCells[2].SetSize(mnCellSize);
-        mpCells[2].SetPosition(QPointF(nX, nY));
-
-        // Bottom-left cell [3].
-        nX = nX - c_nHalfWidth;
-        mpCells[3].SetSize(mnCellSize);
-        mpCells[3].SetPosition(QPointF(nX, nY));
-
-        // Left cell [4]
-        nX = nX - (c_nHalfWidth / 2.0f);
-        nY = nY - (c_nCombSize * HEX_LONG_SHORT) * HEX_HALF_WIDTH;
-        mpCells[4].SetSize(mnCellSize);
-        mpCells[4].SetPosition(QPointF(nX, nY));
-
-        // Top-left cell [5].
-        nX = nX + (c_nHalfWidth / 2.0f);
-        nY = nY - (c_nCombSize * HEX_LONG_SHORT) * HEX_HALF_WIDTH;
-        mpCells[5].SetSize(mnCellSize);
-        mpCells[5].SetPosition(QPointF(nX, nY));
-
-        // Top-right cell [6].
-        nX = nX + c_nHalfWidth;
-        mpCells[6].SetSize(mnCellSize);
-        mpCells[6].SetPosition(QPointF(nX, nY));
+            nTheta += c_nDegreePerAngle;
+            if (nTheta >= MAX_DEGREE)
+            {
+                nTheta -= MAX_DEGREE;
+            }
+        }
 
         // DONE!
     }

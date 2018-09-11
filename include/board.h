@@ -3,7 +3,7 @@
 
 #include "include/honeycomb.h"
 
-typedef CHoneyComb** CombIterator; //!< This is used as a helper type for ease of iterating over the board combs.
+typedef std::vector<CHoneyComb*>::iterator CombIterator; //!< This is used as a helper type for ease of iterating over the board combs.
 
 /*!
  * \brief The CBoard class
@@ -23,7 +23,7 @@ public:
     CBoard& operator=(const CBoard& aCls);
 
     // Workers.
-    void Create(u32 uCellSz, QPointF c_qPos);
+    void Create(u32 uCellSz, QPointF aqCenter);
     void Destroy();
 
     void Draw(QPainter *pPainter = nullptr);
@@ -33,20 +33,20 @@ public:
 
     CombIterator GetCombIterator();
 
-    CHoneyComb* GetComb(CombIterator pIter = nullptr);
+    CHoneyComb* GetComb(CombIterator pIter);
     CHoneyComb* GetComb(u32 uCombIdx = 0);
 
-    CombIterator GetNeighbors(CHoneyComb *pComb = nullptr);
-    CombIterator GetNeighbors(u32 uCombIdx = 0);
+    CHoneyComb **GetNeighbors(CHoneyComb *pComb = nullptr);
+    CHoneyComb **GetNeighbors(u32 uCombIdx = 0);
 
     // Setters.
     void SetBoardSize(u32 uSz = 2);
 
 private:
-    QPointF* CalcTessPos(QPointF& aStart, u32 iLayerIdx = 0);
+    std::vector<QPointF> CalcTessPos(QPointF& aStart, u32 iLayerIdx, u32 uCellSz);
 
-    CHoneyComb **mpBoardCombs; //!< Board honeycombs. (array of pointers)
     u32 miSize; //!< Number of tessellation layers for the board. (Default = 2)
+    std::vector<CHoneyComb*> mpBoardCombs; //!< Board honeycombs. (array of pointers)
 };
 
 #endif // BOARD_H

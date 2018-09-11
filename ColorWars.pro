@@ -16,7 +16,6 @@ TEMPLATE = app
 
 # Versioning (use UNIX-style versioning)
 VERSION = 1.0.0
-BUILD_VER = 0001
 
 # The following define makes your compiler emit warnings if you use
 # any feature of Qt which has been marked as deprecated (the exact warnings
@@ -42,6 +41,9 @@ HEADERS += \
     include/globals.h \
     include/board.h
 
+BUILDNO = $$system(src/build.number)
+DEFINES += BUILD=$${BUILDNO}
+
 # Specify Build settings.
 
 CONFIG(release, debug|release) {
@@ -64,7 +66,7 @@ CONFIG(debug, debug|release) {
 
 
 # System Information.
-message($$TARGET ($$VERSION Build: $$BUILD_VER))
+message($$TARGET ($$VERSION Build: $${BUILDNO}))
 message(Build OS: $$QMAKE_HOST.os $$QMAKE_HOST.version_string ($$QMAKE_HOST.version))
 message(Build Arch: $$QMAKE_HOST.arch)
 message(Build CPUs: $$QMAKE_HOST.cpu_count)
