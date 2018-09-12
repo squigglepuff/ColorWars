@@ -1,24 +1,31 @@
 #ifndef GAME_H
 #define GAME_H
 
+#include "include/nation.h"
 #include "include/board.h"
 
 /*!
  * \brief The CDice class
  *
  * This is a simple class used to provide an arbitrary-sided die. This can range anywhere from D-3 to D-MAX_INT. The class will seed the C++ STL Pseudo-RNG once (during construction) and
- * then continue to use the seeded RNG to generate "random" rolls. These rolls are "one-shot", meaning they are NOT re-rolled to prevent duplicates.
+ * then continue to use the seeded RNG to generate "random" rolls. These rolls are "one-shot", meaning they are NOT re-rolled to prevent duplicates. This class does track the last produced roll,
+ * however. That value though, is not used by anything other than potential tracking.
  */
 class CDice
 {
 public:
     CDice();
-    CDice(const CDice&);
+    CDice(const CDice& aCls);
     ~CDice();
 
-    CDice& operator=(const CDice&);
+    CDice& operator=(const CDice& aCls);
 
     u32 Roll(u32 uMin = 3, u32 uMax = 0xffffffff);
+
+    u32 GetLastRoll();
+
+private:
+    u32 muLastRoll;
 };
 
 /*!
@@ -43,26 +50,27 @@ public:
     CGame& operator=(const CGame& aCls);
 
     // Workers.
-    void NewGame(u32 iDiceMax = 0xffffffff);
+    void NewGame(u32 iDiceMax = 0xffffffff, u32 uCellSz = 128, QPointF qCenter = QPointF(1024, 1024));
     void EndGame();
 
-    std::pair<bool, QString> MoveColor(ECellColors eAggressor, ECellColors eVictim);
+    std::pair<bool, QString> MoveColor(ECellColors eAggressor, ECellColors eVictim, u32 uMvAmnt = 3);
 
     u32 DummyRoll();
 
+    void Draw(QPainter *pPainter = nullptr);
+
     // Getters.
     u32 GetDiceMax();
+    CBoard* GetBoard();
 
     // Setters.
     void SetDiceMax(u32 iMaxium = 0xffffffff);
 
-    // Signals.
-signals:
-    void needsRedraw();
-
 private:
-    CDice *mpDice;
-    CBoard *mpBoard;
+    CDice *mpDice; //!< Pointer to the dice used to make decisions.
+    CBoard *mpBoard; //!< Pointer to the active game board.
+    std::vector<CNation*> *mpNations; //!< Vector of pointers to the current (live) nations at play.
+    u32 muDiceMax; //!< The maximum roll amount for a dice "throw".
 };
 
 #endif // GAME_H

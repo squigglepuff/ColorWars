@@ -299,6 +299,28 @@ bool CHoneyComb::CombIsAllColor(ECellColors aeClr)
     return bSuccess;
 }
 
+bool CHoneyComb::CombContainsColor(ECellColors aeClr)
+{
+    bool bSuccess = false;
+
+    if (IsInitialized())
+    {
+        for (std::vector<CCell>::iterator pIter = mpCells.begin(); pIter != mpCells.end() && !bSuccess; ++pIter)
+        {
+            if ((*pIter).IsValid())
+            {
+                if ((*pIter).GetColor() == aeClr)
+                {
+                    bSuccess = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    return bSuccess;
+}
+
 bool CHoneyComb::IsInitialized()
 {
     if (!mPosition.isNull() && 0 < mnCellSize)
@@ -346,6 +368,53 @@ CCell& CHoneyComb::GetCellNotColor(ECellColors aeClr)
     }
 
     return (*rCell);
+}
+
+CCell& CHoneyComb::GetCellIsColor(ECellColors aeClr)
+{
+    CCell* rCell = nullptr;
+
+    if (IsInitialized())
+    {
+        for (std::vector<CCell>::iterator pIter = mpCells.begin(); pIter != mpCells.end(); ++pIter)
+        {
+            if ((*pIter).GetColor() == aeClr)
+            {
+                rCell = &(*pIter);
+                break;
+            }
+        }
+    }
+
+    return (*rCell);
+}
+
+size_t CHoneyComb::GetCellIdxNotColor(ECellColors eIsNotColor)
+{
+    size_t iCellIdx = 0;
+    if (IsInitialized())
+    {
+        for (std::vector<CCell>::iterator pIter = mpCells.begin(); pIter != mpCells.end() && (*pIter).GetColor() != eIsNotColor; ++pIter, ++iCellIdx)
+        {
+            // Intentionally left blank.
+        }
+    }
+
+    return iCellIdx;
+}
+
+size_t CHoneyComb::GetCellIdxColor(ECellColors eIsColor)
+{
+    size_t iCellIdx = 0;
+    if (IsInitialized())
+    {
+        for (std::vector<CCell>::iterator pIter = mpCells.begin(); pIter != mpCells.end() && (*pIter).GetColor() == eIsColor; ++pIter, ++iCellIdx)
+        {
+            // Intentionally left blank.
+        }
+    }
+
+    return iCellIdx;
 }
 
 ECellColors CHoneyComb::GetCombColor()

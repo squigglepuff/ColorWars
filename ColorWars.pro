@@ -34,14 +34,16 @@ SOURCES += \
         src/main.cpp \
         src/mainwindow.cpp \
     src/board.cpp \
-    src/game.cpp
+    src/game.cpp \
+    src/nation.cpp
 
 HEADERS += \
         include/honeycomb.h \
         include/mainwindow.h \
     include/globals.h \
     include/board.h \
-    include/game.h
+    include/game.h \
+    include/nation.h
 
 BUILDNO = $$system(src/build.number)
 unix:DEFINES += BUILD=$${BUILDNO}

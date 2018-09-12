@@ -1,5 +1,5 @@
 #!/bin/bash
-number=8;
+number=15;
 number=$((number+1));
 echo "$number";
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"

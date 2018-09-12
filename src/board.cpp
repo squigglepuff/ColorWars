@@ -10,6 +10,8 @@ CBoard::CBoard(const CBoard& aCls) : miSize{aCls.miSize}
     if (!aCls.mpBoardCombs.empty())
     {
         mpBoardCombs = aCls.mpBoardCombs;
+        mColorLastMap = aCls.mColorLastMap;
+        mvNations = aCls.mvNations;
     }
 }
 
@@ -22,6 +24,16 @@ CBoard::~CBoard()
             delete (*pIter);
         }
     }
+
+    for (std::vector<CNation*>::iterator pNatIter = mvNations.end(); pNatIter != mvNations.begin(); --pNatIter)
+    {
+        if (nullptr != *pNatIter)
+        {
+            delete (*pNatIter);
+        }
+    }
+
+    mvNations.clear();
 }
 
 CBoard& CBoard::operator =(const CBoard& aCls)
@@ -30,6 +42,8 @@ CBoard& CBoard::operator =(const CBoard& aCls)
     {
         miSize = aCls.miSize;
         mpBoardCombs = aCls.mpBoardCombs;
+        mColorLastMap = aCls.mColorLastMap;
+        mvNations = aCls.mvNations;
     }
 
     return *this;
@@ -84,7 +98,15 @@ void CBoard::Create(u32 uCellSz, QPointF aqCenter)
                 // Colorize only the last layer.
                 if ((miSize-1) == iLyrIdx)
                 {
-                    pTmpComb->SetCombColor(static_cast<ECellColors>(eClr));
+                    ECellColors eColor = static_cast<ECellColors>(eClr);
+                    pTmpComb->SetCombColor(eColor);
+
+                    // Create this color's nation.
+                    // We use the size of the vector here as it's representative of the comb's index when the comb is pushed on it (0-based index).
+                    CNation* pTmpNat = new CNation();
+                    pTmpNat->Create(eColor, pTmpComb, g_ColorNameMap[eColor]);
+                    mvNations.push_back(pTmpNat);
+
                     ++eClr;
                     if (static_cast<u32>(Cell_Gray) < eClr) { eClr = static_cast<u32>(Cell_Red); }
                 }
@@ -119,6 +141,9 @@ void CBoard::Destroy()
             delete (*pIter);
         }
     }
+
+    // Clear the color last map.
+    mColorLastMap.clear();
 }
 
 /*!
@@ -263,6 +288,32 @@ CHoneyComb** CBoard::GetNeighbors(CHoneyComb *pComb)
 CHoneyComb** CBoard::GetNeighbors(u32 uCombIdx)
 {
     return GetNeighbors(GetComb(uCombIdx));
+}
+
+/*!
+ * \brief CBoard::GetNationList
+ *
+ * This function is used so the CGame class can have a reference to the nation vector for manipulation purposes.
+ *
+ * \return Pointer to the nation vector.
+ */
+std::vector<CNation*>* CBoard::GetNationList()
+{
+    return &mvNations;
+}
+
+/*!
+ * \brief CBoard::GetLastCombAttacked
+ *
+ * This function will return the index of the last honeycomb that a color successfully "attacked". This means that the color gained cells in the comb at the returned index and *may* have filled
+ * the comb, taking ownership. The caller will need to determine if this has occurred or not and react accordingly.
+ *
+ * \param aeClr - The color to search for
+ * \return A 0-based index of the comb last attacked, or -1 if the color isn't present.
+ */
+int CBoard::GetLastCombAttacked(ECellColors aeClr)
+{
+    return (mColorLastMap.end() != mColorLastMap.find(aeClr)) ? mColorLastMap.at(aeClr) : (-1);
 }
 
 /*!

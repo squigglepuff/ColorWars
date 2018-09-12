@@ -1,7 +1,7 @@
 #ifndef BOARD_H
 #define BOARD_H
 
-#include "include/honeycomb.h"
+#include "include/nation.h"
 
 typedef std::vector<CHoneyComb*>::iterator CombIterator; //!< This is used as a helper type for ease of iterating over the board combs.
 
@@ -39,6 +39,10 @@ public:
     CHoneyComb **GetNeighbors(CHoneyComb *pComb = nullptr);
     CHoneyComb **GetNeighbors(u32 uCombIdx = 0);
 
+    std::vector<CNation*>* GetNationList();
+
+    int GetLastCombAttacked(ECellColors aeClr);
+
     // Setters.
     void SetBoardSize(u32 uSz = 2);
 
@@ -47,6 +51,8 @@ private:
 
     u32 miSize; //!< Number of tessellation layers for the board. (Default = 2)
     std::vector<CHoneyComb*> mpBoardCombs; //!< Board honeycombs. (array of pointers)
+    std::map<ECellColors, u32> mColorLastMap; //!< Map used as reference for finding the last comb a color successfully "attacked".
+    std::vector<CNation*> mvNations; //!< Vector of pointers to the current (live) nations at play.
 };
 
 #endif // BOARD_H

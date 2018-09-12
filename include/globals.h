@@ -4,6 +4,7 @@
 // C++ Standard headers.
 #include <math.h>
 #include <random>
+#include <algorithm>
 
 // Custom data types.
 #if !defined(_CUSTOM_TYPES_SET)
@@ -78,6 +79,9 @@ enum ECellColors
     Cell_Gray = 0xc00d,
     Comb_Mixed = 0xcff1 //!< Only used by honeycombs and not individual cells!
 };
+
+extern std::map<ECellColors, std::string> g_ColorNameMap;
+
 #endif // #if !defined(_CELL_COLORS)
 
 #endif // GLOBALS_H

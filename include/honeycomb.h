@@ -125,6 +125,7 @@ public:
     bool PointInComb(const QPoint& aPt);
 
     bool CombIsAllColor(ECellColors aeClr);
+    bool CombContainsColor(ECellColors aeClr);
 
     // Getters.
     bool IsInitialized();
@@ -138,6 +139,10 @@ public:
 
     std::vector<CCell> GetCells();
     CCell &GetCellNotColor(ECellColors aeClr);
+    CCell &GetCellIsColor(ECellColors aeClr);
+
+    size_t GetCellIdxNotColor(ECellColors eIsNotColor);
+    size_t GetCellIdxColor(ECellColors eIsColor);
 
     // Setters.
     void SetCellSize(const float anSize);
