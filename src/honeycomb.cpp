@@ -99,6 +99,8 @@ bool CCell::Draw(QPainter *pPainter)
                 case Cell_Purple: pPainter->setBrush(QBrush(QColor(125, 0, 255))); break;
                 case Cell_Magenta: pPainter->setBrush(QBrush(QColor(255, 0, 255))); break;
                 case Cell_Pink: pPainter->setBrush(QBrush(QColor(255, 0, 125))); break;
+                case Cell_Brown: pPainter->setBrush(QBrush(QColor(125, 50, 0))); break;
+                case Cell_Gray: pPainter->setBrush(QBrush(QColor(125, 125, 125))); break;
                 default: pPainter->setBrush(QBrush(QColor(255, 255, 255))); break;
             }
 

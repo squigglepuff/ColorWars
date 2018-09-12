@@ -73,6 +73,8 @@ enum ECellColors
     Cell_Purple = 0xc009,
     Cell_Magenta = 0xc00a,
     Cell_Pink = 0xc00b,
+    Cell_Brown = 0xc00c,
+    Cell_Gray = 0xc00d,
     Comb_Mixed = 0xcff1 //!< Only used by honeycombs and not individual cells!
 };
 #endif // #if !defined(_CELL_COLORS)

@@ -86,7 +86,7 @@ void CBoard::Create(u32 uCellSz, QPointF aqCenter)
                 {
                     pTmpComb->SetCombColor(static_cast<ECellColors>(eClr));
                     ++eClr;
-                    if (static_cast<u32>(Cell_Pink) <= eClr) { eClr = static_cast<u32>(Cell_Red); }
+                    if (static_cast<u32>(Cell_Gray) < eClr) { eClr = static_cast<u32>(Cell_Red); }
                 }
 
                 mpBoardCombs.push_back(pTmpComb);
