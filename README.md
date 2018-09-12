@@ -5,7 +5,7 @@
 |---------|------------|----------|--------------|
 | 0.1 r0  |   IN-DEV   |   C++14  |  QMake 5.x   |
 
-![ColorWars Icon](/icon.png)
+![ColorWars Icon](/logo.png)
 
 *Summary*
 ------------------
