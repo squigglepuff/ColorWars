@@ -15,7 +15,12 @@ CMainWindow::CMainWindow(QWidget *parent) : QMainWindow(parent)
     // Set the window properties.
     char *pWndTitle = new char[4096];
     memset(pWndTitle, 0, 4096);
+
+#if defined(Q_OS_UNIX)
     snprintf(pWndTitle, 4095, "Color Wars %s [Version: %d.%d.%d] (Build: %d)", VER_STAGE, VER_MAJOR, VER_MINOR, VER_PATCH, BUILD);
+#else
+    snprintf(pWndTitle, 4095, "Color Wars %s [Version: %d.%d.%d] (Build: %d)", VER_STAGE, VER_MAJOR, VER_MINOR, VER_PATCH, 0);
+#endif // #if defined(BUILD)
 
     setWindowTitle(QString::fromLatin1(pWndTitle));
     resize(c_iWndSz, c_iWndSz);

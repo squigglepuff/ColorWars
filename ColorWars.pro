@@ -33,16 +33,18 @@ SOURCES += \
         src/honeycomb.cpp \
         src/main.cpp \
         src/mainwindow.cpp \
-    src/board.cpp
+    src/board.cpp \
+    src/game.cpp
 
 HEADERS += \
         include/honeycomb.h \
         include/mainwindow.h \
     include/globals.h \
-    include/board.h
+    include/board.h \
+    include/game.h
 
 BUILDNO = $$system(src/build.number)
-DEFINES += BUILD=$${BUILDNO}
+unix:DEFINES += BUILD=$${BUILDNO}
 
 # Specify Build settings.
 
