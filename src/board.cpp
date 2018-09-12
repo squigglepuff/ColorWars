@@ -297,9 +297,9 @@ CHoneyComb** CBoard::GetNeighbors(u32 uCombIdx)
  *
  * \return Pointer to the nation vector.
  */
-std::vector<CNation*>* CBoard::GetNationList()
+std::vector<CNation *> CBoard::GetNationList()
 {
-    return &mvNations;
+    return mvNations;
 }
 
 /*!

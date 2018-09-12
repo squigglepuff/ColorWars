@@ -21,8 +21,8 @@ public:
 
     CNation& operator=(const CNation& aCls);
 
-    CNation& operator <<(const CNation& aChild);
-    CNation& operator >>(const CNation& aParent);
+    CNation& operator <<(CNation &aChild);
+    CNation& operator >>(CNation &aParent);
 
     // Workers.
     void Create(ECellColors eClr = Cell_White, CHoneyComb *pStartComb = nullptr, QString sName = "White");

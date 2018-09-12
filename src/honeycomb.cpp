@@ -203,7 +203,7 @@ CHoneyComb::CHoneyComb() : mnCellSize{0.0f}, mPosition{QPointF(0.0f, 0.0f)}, meC
     // Intentionally left blank.
 }
 
-CHoneyComb::CHoneyComb(const CHoneyComb& aCls) : mnCellSize{aCls.mnCellSize}, mPosition{aCls.mPosition}, mpCells{aCls.mpCells}, meCombColor{aCls.meCombColor}
+CHoneyComb::CHoneyComb(const CHoneyComb& aCls) : mnCellSize{aCls.mnCellSize}, mPosition{aCls.mPosition}, meCombColor{aCls.meCombColor}, mpCells{aCls.mpCells}
 {
     // Intentionally left blank.
 }
@@ -349,6 +349,11 @@ const QPointF& CHoneyComb::GetPosition()
 std::vector<CCell> CHoneyComb::GetCells()
 {
     return mpCells;
+}
+
+CCell& CHoneyComb::GetCellAt(u32 iCellIdx)
+{
+    return (mpCells.size() > iCellIdx) ? mpCells[iCellIdx] : mpCells[mpCells.size()-1];
 }
 
 CCell& CHoneyComb::GetCellNotColor(ECellColors aeClr)

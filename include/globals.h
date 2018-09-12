@@ -1,6 +1,9 @@
 #ifndef GLOBALS_H
 #define GLOBALS_H
 
+// Qt Headers.
+#include <QString>
+
 // C++ Standard headers.
 #include <math.h>
 #include <random>
@@ -80,7 +83,7 @@ enum ECellColors
     Comb_Mixed = 0xcff1 //!< Only used by honeycombs and not individual cells!
 };
 
-extern std::map<ECellColors, std::string> g_ColorNameMap;
+extern std::map<ECellColors, QString> g_ColorNameMap;
 
 #endif // #if !defined(_CELL_COLORS)
 

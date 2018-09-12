@@ -138,6 +138,8 @@ public:
     const QPointF& GetPosition();
 
     std::vector<CCell> GetCells();
+    CCell& GetCellAt(u32 iCellIdx);
+
     CCell &GetCellNotColor(ECellColors aeClr);
     CCell &GetCellIsColor(ECellColors aeClr);
 

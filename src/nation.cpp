@@ -28,12 +28,12 @@ CNation& CNation::operator=(const CNation& aCls)
     return *this;
 }
 
-CNation& CNation::operator <<(const CNation& aChild)
+CNation& CNation::operator <<(CNation& aChild)
 {
     return aChild.Merge(*this);
 }
 
-CNation& CNation::operator >>(const CNation& aParent)
+CNation& CNation::operator >>(CNation& aParent)
 {
     return Merge(aParent);
 }
@@ -46,7 +46,7 @@ void CNation::Create(ECellColors eClr, CHoneyComb* pStartComb, QString sName)
         msName = sName;
 
         mvOwnedCombs.push_back(pStartComb);
-        mvOwnedCells.insert(pStartComb, {0,1,2,3,4,5,6}); // We own all these cells!
+        mvOwnedCells[pStartComb] = {0,1,2,3,4,5,6}; // We own all these cells!
 
         // Set the comb color!
         pStartComb->SetCombColor(eClr);
@@ -62,7 +62,7 @@ void CNation::Destroy()
 
 bool CNation::Add(CHoneyComb *pComb, u32 iCellIdx)
 {
-    bSuccess = false;
+    bool bSuccess = false;
     if (nullptr != pComb)
     {
         if (std::find(mvOwnedCombs.begin(), mvOwnedCombs.end(), pComb) == mvOwnedCombs.end())
@@ -82,7 +82,7 @@ bool CNation::Add(CHoneyComb *pComb, u32 iCellIdx)
         // Set the color of the cell in question.
         for (std::vector<u32>::iterator pCellIter = mvOwnedCells.at(pComb).begin(); pCellIter != mvOwnedCells.at(pComb).end(); ++pCellIter)
         {
-            pComb[(*pCellIter)].SetColor(meColor);
+            pComb->GetCellAt((*pCellIter)).SetColor(meColor);
         }
 
         bSuccess = true;
@@ -145,7 +145,7 @@ bool CNation::Remove(CHoneyComb *pComb, u32 iCellIdx)
 CNation& CNation::Merge(CNation& rMother)
 {
     // We want to iterate over our owned combs and add them to the new mother.
-    for (std::vector<CHoneyComb*>::iterator pCombIter = mvOwnedCombs.end(); pCellIter != mvOwnedCombs.begin(); --pCombIter)
+    for (std::vector<CHoneyComb*>::iterator pCombIter = mvOwnedCombs.end(); pCombIter != mvOwnedCombs.begin(); --pCombIter)
     {
         if (mvOwnedCells.find(*pCombIter) != mvOwnedCells.end())
         {

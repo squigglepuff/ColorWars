@@ -69,7 +69,7 @@ public:
 private:
     CDice *mpDice; //!< Pointer to the dice used to make decisions.
     CBoard *mpBoard; //!< Pointer to the active game board.
-    std::vector<CNation*> *mpNations; //!< Vector of pointers to the current (live) nations at play.
+    std::vector<CNation*> mvNations; //!< Vector of pointers to the current (live) nations at play.
     u32 muDiceMax; //!< The maximum roll amount for a dice "throw".
 };
 

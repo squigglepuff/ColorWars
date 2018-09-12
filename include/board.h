@@ -39,7 +39,7 @@ public:
     CHoneyComb **GetNeighbors(CHoneyComb *pComb = nullptr);
     CHoneyComb **GetNeighbors(u32 uCombIdx = 0);
 
-    std::vector<CNation*>* GetNationList();
+    std::vector<CNation*> GetNationList();
 
     int GetLastCombAttacked(ECellColors aeClr);
 

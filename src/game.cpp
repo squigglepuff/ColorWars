@@ -84,7 +84,7 @@ void CGame::NewGame(u32 iDiceMax, u32 uCellSz, QPointF qCenter)
         // Instantiate a new board.
         mpBoard = new CBoard();
         mpBoard->Create(uCellSz, qCenter);
-        mpNations = mpBoard->GetNationList();
+        mvNations = mpBoard->GetNationList();
     }
     else
     {
@@ -111,15 +111,15 @@ std::pair<bool, QString> CGame::MoveColor(ECellColors eAggressor, ECellColors eV
         // Check to see if these colors currently have live nations.
         CNation* pAggrNation = nullptr;
         CNation* pVictimNation = nullptr;
-        for (std::vector<CNation*>::iterator pNatIter = *(mpNations->end()); pNatIter != *(mpNations->begin()); --pNatIter)
+        for (std::vector<CNation*>::iterator pNatIter = mvNations.end(); pNatIter != mvNations.begin(); --pNatIter)
         {
             if ((*pNatIter)->GetNationColor() == eAggressor)
             {
-                pAggrNation = (*pIter);
+                pAggrNation = (*pNatIter);
             }
             else if ((*pNatIter)->GetNationColor() == eVictim)
             {
-                pVictimNation = (*pIter);
+                pVictimNation = (*pNatIter);
             }
         }
 
@@ -151,7 +151,7 @@ std::pair<bool, QString> CGame::MoveColor(ECellColors eAggressor, ECellColors eV
                         ++uCellsTaken;
 
                         if (uCellsTaken >= uMvAmnt) { break; }
-                    } while ( (*pAggrIter)->GetCellIsColor(eVictim) && uCellsTaken < uMvAmnt);
+                    } while ( (*pAggrIter)->CombContainsColor(eVictim) && uCellsTaken < uMvAmnt);
 
                     if (uCellsTaken >= uMvAmnt) { break; }
                 }
@@ -170,7 +170,7 @@ std::pair<bool, QString> CGame::MoveColor(ECellColors eAggressor, ECellColors eV
                             ++uCellsTaken;
 
                             if (uCellsTaken >= uMvAmnt) { break; }
-                        } while ( (*pAggrIter)->GetCellIsColor(eVictim) && uCellsTaken < uMvAmnt);
+                        } while ( (*pAggrIter)->CombContainsColor(eVictim) && uCellsTaken < uMvAmnt);
                     }
 
                     if (uCellsTaken >= uMvAmnt) { break; }
@@ -179,7 +179,7 @@ std::pair<bool, QString> CGame::MoveColor(ECellColors eAggressor, ECellColors eV
                 if (uCellsTaken >= uMvAmnt) { break; }
             }
 
-            rtnData = std::pair<bool, QString>(false, tr("Took %1 cells!").arg(uCellsTaken));
+            rtnData = std::pair<bool, QString>(false, QString("Took %1 cells!").arg(uCellsTaken));
         }
         else if (nullptr != pAggrNation && nullptr == pVictimNation)
         {
