@@ -74,22 +74,22 @@ public:
 
     // Getters.
     float GetSize();
-    const QPointF& GetCenter();
-    const QPointF& GetPosition();
+    const SPoint& GetCenter();
+    const SPoint& GetPosition();
     ECellColors GetColor();
 
     bool IsValid();
 
     // Setters.
     void SetSize(const float anSize);
-    void SetCenter(const QPointF& aqCenter);
-    void SetPosition(const QPointF& aqPosition);
+    void SetCenter(const SPoint& aqCenter);
+    void SetPosition(const SPoint& aqPosition);
     void SetColor(ECellColors aeClr = Cell_White);
 
 private:
     bool mbIsValid; //!< Is this cell valid (has position and size)?
     float mnSize; //!< The size of the hexagon.
-    QPointF mPosition; //!< The position of the hexagon in pixels.
+    SPoint mPosition; //!< The position of the hexagon in pixels.
     ECellColors meClr; //!< Color to fill the cell with.
 };
 
@@ -116,8 +116,8 @@ public:
 
     // Overloads.
     CHoneyComb& operator =(const CHoneyComb& aCls);
-    CCell& operator [](size_t iIdx); // Used to index through the cells.
-    std::vector<CCell> operator *(); // Used to return all cells.
+    CCell* operator [](size_t iIdx); // Used to index through the cells.
+    std::vector<CCell*> operator *(); // Used to return all cells.
 
     // Workers.
     bool Draw(QPainter *pPainter = nullptr);
@@ -135,30 +135,30 @@ public:
 
     ECellColors GetCombColor();
 
-    const QPointF& GetPosition();
+    const SPoint& GetPosition();
 
-    std::vector<CCell> GetCells();
-    CCell& GetCellAt(u32 iCellIdx);
+    std::vector<CCell*> GetCells();
+    CCell* GetCellAt(u32 iCellIdx);
 
-    CCell &GetCellNotColor(ECellColors aeClr);
-    CCell &GetCellIsColor(ECellColors aeClr);
+    CCell* GetCellNotColor(ECellColors aeClr);
+    CCell* GetCellIsColor(ECellColors aeClr);
 
     size_t GetCellIdxNotColor(ECellColors eIsNotColor);
     size_t GetCellIdxColor(ECellColors eIsColor);
 
     // Setters.
     void SetCellSize(const float anSize);
-    void SetPosition(const QPointF& aqPosition);
+    void SetPosition(const SPoint& aqPosition);
     void SetCombColor(ECellColors aeClr = Cell_White);
 
 private:
     void RecalcPositions();
 
     float mnCellSize; //!< The size of the cells in pixels.
-    QPointF mPosition; //!< The position of the honeycomb (and the center cell).
+    SPoint mPosition; //!< The position of the honeycomb (and the center cell).
     ECellColors meCombColor; //!< Color of the entire honycomb.
 
-    std::vector<CCell> mpCells; //!< Heap-allocated cells for the honeycomb.
+    std::vector<CCell*> mpCells; //!< Heap-allocated cells for the honeycomb.
 };
 
 #endif // #ifndef _HONEYCOMB_H

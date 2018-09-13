@@ -53,7 +53,6 @@ CGame::~CGame()
     if (nullptr != mpBoard)
     {
         mpBoard->Destroy();
-        delete mpBoard;
     }
 }
 
@@ -69,7 +68,7 @@ CGame& CGame::operator=(const CGame& aCls)
     return *this;
 }
 
-void CGame::NewGame(u32 iDiceMax, u32 uCellSz, QPointF qCenter)
+void CGame::NewGame(u32 iDiceMax, u32 uCellSz, SPoint qCenter)
 {
     if (nullptr == mpDice && nullptr == mpBoard)
     {
@@ -92,7 +91,80 @@ void CGame::NewGame(u32 iDiceMax, u32 uCellSz, QPointF qCenter)
     }
 }
 
+void CGame::Play(ECellColors eAggressor, ECellColors eVictim)
+{
+    if (nullptr != mpDice && nullptr != mpBoard)
+    {
+        /* Determine the ranges we need to be in for movement amounts.
+         * These are:
+         *  [x - y](25% of range){center of range}  --->  Move 3 spaces
+         *  [x - y](10% of range){center of range}  --->  Move 9 spaces
+         *  [x - y](5% of range){center of range}   --->  Move 27 spaces
+         *  [x - y](1% of range){center of range}   --->  Overtake
+         */
+        const u32 uSmallMvRange = static_cast<u32>(muDiceMax * 0.25f);
+        const u32 uMedMvRange = static_cast<u32>(muDiceMax * 0.10f);
+        const u32 uLrgMvRange = static_cast<u32>(muDiceMax * 0.05f);
+        const u32 uHugeMvRange = static_cast<u32>(muDiceMax * 0.01f);
+        const u32 uMidOfRange = static_cast<u32>(muDiceMax / 2.0f);
+
+        // Roll the dice!
+        u32 uRoll = mpDice->Roll(3, muDiceMax);
+
+        // Check to see if we should move.
+        if ((uSmallMvRange + uMidOfRange) >= uRoll && (uMidOfRange - uSmallMvRange) <= uRoll)
+        {
+            if ((uMedMvRange + uMidOfRange) >= uRoll && (uMidOfRange - uMedMvRange) <= uRoll)
+            {
+                if ((uLrgMvRange + uMidOfRange) >= uRoll && (uMidOfRange - uLrgMvRange) <= uRoll)
+                {
+                    if ((uHugeMvRange + uMidOfRange) >= uRoll && (uMidOfRange - uHugeMvRange) <= uRoll)
+                    {
+                        // Overtake! Move HUGE amount!
+                        std::pair<bool, QString> rtnData = MoveColor(eAggressor, eVictim, 0);
+                        if (rtnData.first) { qInfo(rtnData.second.toStdString().c_str()); }
+                        else { qCritical(rtnData.second.toStdString().c_str()); }
+                    }
+                    else
+                    {
+                        // Move large amount!
+                        std::pair<bool, QString> rtnData = MoveColor(eAggressor, eVictim, 27);
+                        if (rtnData.first) { qInfo(rtnData.second.toStdString().c_str()); }
+                        else { qCritical(rtnData.second.toStdString().c_str()); }
+                    }
+                }
+                else
+                {
+                    // Move medium amount!
+                    std::pair<bool, QString> rtnData = MoveColor(eAggressor, eVictim, 9);
+                    if (rtnData.first) { qInfo(rtnData.second.toStdString().c_str()); }
+                    else { qCritical(rtnData.second.toStdString().c_str()); }
+                }
+            }
+            else
+            {
+                // Move small amount!
+                std::pair<bool, QString> rtnData = MoveColor(eAggressor, eVictim, 3);
+                if (rtnData.first) { qInfo(rtnData.second.toStdString().c_str()); }
+                else { qCritical(rtnData.second.toStdString().c_str()); }
+            }
+        }
+
+        // Check if there is only 1 color.
+        if (1 == mvNations.size())
+        {
+            qInfo(QString("%1 has won!").arg(g_ColorNameMap[mvNations[0]->GetNationColor()]).toStdString().c_str());
+            EndGame();
+        }
+    }
+}
+
 void CGame::EndGame()
+{
+    if (nullptr != mpDice) { delete mpDice; }
+}
+
+void CGame::Destroy()
 {
     // Delete the dice and board.
     if (nullptr != mpDice) { delete mpDice; }
@@ -111,75 +183,98 @@ std::pair<bool, QString> CGame::MoveColor(ECellColors eAggressor, ECellColors eV
         // Check to see if these colors currently have live nations.
         CNation* pAggrNation = nullptr;
         CNation* pVictimNation = nullptr;
-        for (std::vector<CNation*>::iterator pNatIter = mvNations.end(); pNatIter != mvNations.begin(); --pNatIter)
+        for (std::vector<CNation*>::iterator pNatIter = mvNations.begin(); pNatIter != mvNations.end(); ++pNatIter)
         {
-            if ((*pNatIter)->GetNationColor() == eAggressor)
+            CNation *pTmpNat = (*pNatIter);
+            if (nullptr != pTmpNat)
             {
-                pAggrNation = (*pNatIter);
-            }
-            else if ((*pNatIter)->GetNationColor() == eVictim)
-            {
-                pVictimNation = (*pNatIter);
+                if (pTmpNat->GetNationColor() == eAggressor)
+                {
+                    pAggrNation = pTmpNat;
+                }
+                else if (pTmpNat->GetNationColor() == eVictim)
+                {
+                    pVictimNation = pTmpNat;
+                }
             }
         }
 
         if (nullptr != pAggrNation && nullptr != pVictimNation)
         {
-            /* Attempt to make the move.
-             *
-             * In order to do this, we first acquire all the aggressor combs and iterate through them. First testing to see if one of them is shared with the victim.
-             * IF TRUE: We then attempt to claim all the victim's cells (up to uMvAmnt).
-             * IF FALSE: We then check the neighbors and see if one of them has the victim.
-             *      IF TRUE: We then attack the new comb, and go from there.
-             *      IF FALSE: We move on to the next comb
-             *
-             * If we don't get uMvAmnt of cells, we report back saying "true, however only X cells taken, no neighbors remain."
-             */
-            u32 uCellsTaken = 0;
-            std::vector<CHoneyComb*> vAggrCombs = pAggrNation->GetAllCombs();
-            for (std::vector<CHoneyComb*>::iterator pAggrIter = vAggrCombs.begin(); pAggrIter != vAggrCombs.end(); ++pAggrIter)
+            // Here we need to check for takeover.
+            if (uMvAmnt > 0)
             {
-                // Check to see if this comb contains the victim nation.
-                if ((*pAggrIter)->CombContainsColor(eVictim))
+                /* Attempt to make the move.
+                 *
+                 * In order to do this, we first acquire all the aggressor combs and iterate through them. First testing to see if one of them is shared with the victim.
+                 * IF TRUE: We then attempt to claim all the victim's cells (up to uMvAmnt).
+                 * IF FALSE: We then check the neighbors and see if one of them has the victim.
+                 *      IF TRUE: We then attack the new comb, and go from there.
+                 *      IF FALSE: We move on to the next comb
+                 *
+                 * If we don't get uMvAmnt of cells, we report back saying "true, however only X cells taken, no neighbors remain."
+                 */
+                u32 uCellsTaken = 0;
+                std::vector<CHoneyComb*> vAggrCombs = pAggrNation->GetAllCombs();
+                for (std::vector<CHoneyComb*>::iterator pAggrIter = vAggrCombs.begin(); pAggrIter != vAggrCombs.end(); ++pAggrIter)
                 {
-                    // It does! Take their cells!
-                    do
+                    // Check to see if this comb contains the victim nation.
+                    CHoneyComb* pCurrComb = (*pAggrIter);
+                    if (nullptr != pCurrComb)
                     {
-                        u32 uCellIdx = (*pAggrIter)->GetCellIdxColor(eVictim);
-                        pAggrNation->Add(*pAggrIter, uCellIdx);
-                        pVictimNation->Remove(*pAggrIter, uCellIdx);
-                        ++uCellsTaken;
-
-                        if (uCellsTaken >= uMvAmnt) { break; }
-                    } while ( (*pAggrIter)->CombContainsColor(eVictim) && uCellsTaken < uMvAmnt);
-
-                    if (uCellsTaken >= uMvAmnt) { break; }
-                }
-
-                // Grab the neighbors and iterate through them.
-                for (CHoneyComb** pAggrNeighbors = mpBoard->GetNeighbors((*pAggrIter)); nullptr != pAggrNeighbors; ++pAggrNeighbors)
-                {
-                    if ((*pAggrNeighbors)->CombContainsColor(eVictim))
-                    {
-                        // It does! Take their cells!
-                        do
+                        if (pCurrComb->CombContainsColor(eVictim))
                         {
-                            u32 uCellIdx = (*pAggrIter)->GetCellIdxColor(eVictim);
-                            pAggrNation->Add(*pAggrIter, uCellIdx);
-                            pVictimNation->Remove(*pAggrIter, uCellIdx);
-                            ++uCellsTaken;
+                            // It does! Take their cells!
+                            do
+                            {
+                                u32 uCellIdx = pCurrComb->GetCellIdxColor(eVictim);
+                                pAggrNation->Add(*pAggrIter, uCellIdx);
+                                pVictimNation->Remove(*pAggrIter, uCellIdx);
+                                ++uCellsTaken;
+
+                                if (uCellsTaken >= uMvAmnt) { break; }
+                            } while ( pCurrComb->CombContainsColor(eVictim) && uCellsTaken < uMvAmnt);
 
                             if (uCellsTaken >= uMvAmnt) { break; }
-                        } while ( (*pAggrIter)->CombContainsColor(eVictim) && uCellsTaken < uMvAmnt);
+                        }
+
+                        // Grab the neighbors and iterate through them.
+                        for (CHoneyComb** pAggrNeighbors = mpBoard->GetNeighbors(pCurrComb); nullptr != pAggrNeighbors; ++pAggrNeighbors)
+                        {
+                            CHoneyComb* pNeighbor = (*pAggrNeighbors);
+                            if (nullptr != pNeighbor)
+                            {
+                                if (pNeighbor->CombContainsColor(eVictim))
+                                {
+                                    // It does! Take their cells!
+                                    do
+                                    {
+                                        u32 uCellIdx = pNeighbor->GetCellIdxColor(eVictim);
+                                        pAggrNation->Add(pNeighbor, uCellIdx);
+                                        pVictimNation->Remove(pNeighbor, uCellIdx);
+                                        ++uCellsTaken;
+
+                                        if (uCellsTaken >= uMvAmnt) { break; }
+                                    } while ( pNeighbor->CombContainsColor(eVictim) && uCellsTaken < uMvAmnt);
+                                }
+                            }
+
+                            if (uCellsTaken >= uMvAmnt) { break; }
+                        }
                     }
 
                     if (uCellsTaken >= uMvAmnt) { break; }
                 }
 
-                if (uCellsTaken >= uMvAmnt) { break; }
+                rtnData = std::pair<bool, QString>(true, QString("Took %1 cells!").arg(uCellsTaken));
             }
-
-            rtnData = std::pair<bool, QString>(false, QString("Took %1 cells!").arg(uCellsTaken));
+            else
+            {
+                // Merge the two nations!
+                pAggrNation = &( (*pVictimNation) >> (*pAggrNation) );
+                mvNations.erase(std::find(mvNations.begin(), mvNations.end(), pVictimNation));
+                rtnData = std::pair<bool, QString>(true, QString("%1 has conquered %2! OVERTAKE!!!").arg(g_ColorNameMap[pAggrNation->GetNationColor()], g_ColorNameMap[pVictimNation->GetNationColor()]));
+            }
         }
         else if (nullptr != pAggrNation && nullptr == pVictimNation)
         {
@@ -191,7 +286,7 @@ std::pair<bool, QString> CGame::MoveColor(ECellColors eAggressor, ECellColors eV
         }
         else
         {
-            rtnData = std::pair<bool, QString>(false, "Neither nation doesn't exist!");
+            rtnData = std::pair<bool, QString>(false, "Neither nation exists!");
         }
     }
 

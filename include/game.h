@@ -50,8 +50,10 @@ public:
     CGame& operator=(const CGame& aCls);
 
     // Workers.
-    void NewGame(u32 iDiceMax = 0xffffffff, u32 uCellSz = 128, QPointF qCenter = QPointF(1024, 1024));
+    void NewGame(u32 iDiceMax = 0xffffffff, u32 uCellSz = 128, SPoint qCenter = SPoint(1024, 1024));
+    void Play(ECellColors eAggressor, ECellColors eVictim);
     void EndGame();
+    void Destroy();
 
     std::pair<bool, QString> MoveColor(ECellColors eAggressor, ECellColors eVictim, u32 uMvAmnt = 3);
 

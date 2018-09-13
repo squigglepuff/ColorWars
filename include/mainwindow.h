@@ -6,7 +6,7 @@
 #include <QPainter>
 #include <QAction>
 
-#include "include/board.h"
+#include "include/game.h"
 
 class CMainWindow : public QMainWindow
 {
@@ -20,8 +20,12 @@ protected:
     void paintEvent(QPaintEvent *apEvent);
     void contextMenuEvent(QContextMenuEvent *apEvent);
 
+private slots:
+    void tick();
+
 private:
-    CBoard *mpBoard;
+    CGame *mpGame;
+    QTimer *mpTicker;
 };
 
 #endif // MAINWINDOW_H

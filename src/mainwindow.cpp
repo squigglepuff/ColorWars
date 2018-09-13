@@ -1,16 +1,16 @@
 #include <QtGui>
 #include <QMenu>
+#include <QTimer>
 #include "include/mainwindow.h"
 
-CMainWindow::CMainWindow(QWidget *parent) : QMainWindow(parent)
+CMainWindow::CMainWindow(QWidget *parent) : QMainWindow(parent), mpGame{nullptr}, mpTicker{nullptr}
 {
     const u32 c_iWndSz = 1024;
-    QPointF qCenter(c_iWndSz / 2.0, c_iWndSz / 2.0);
+    SPoint qCenter(c_iWndSz / 2.0, c_iWndSz / 2.0);
 
-    // Setup the board.
-    mpBoard = new CBoard();
-    mpBoard->SetBoardSize(2);
-    mpBoard->Create(64, qCenter);
+    // Setup the game.
+    mpGame = new CGame();
+    mpGame->NewGame(0xffffffff, 64, qCenter);
 
     // Set the window properties.
     char *pWndTitle = new char[4096];
@@ -26,11 +26,16 @@ CMainWindow::CMainWindow(QWidget *parent) : QMainWindow(parent)
     resize(c_iWndSz, c_iWndSz);
 
     if (nullptr != pWndTitle) { delete[] pWndTitle; }
+
+    // Setup the timer.
+    mpTicker = new QTimer();
+    connect(mpTicker, &QTimer::timeout, this, &CMainWindow::tick);
+    mpTicker->start(1000);
 }
 
 CMainWindow::~CMainWindow()
 {
-    mpBoard->Destroy();
+    if (nullptr != mpGame) { mpGame->Destroy(); }
 }
 
 void CMainWindow::paintEvent(QPaintEvent *apEvent)
@@ -39,7 +44,7 @@ void CMainWindow::paintEvent(QPaintEvent *apEvent)
     {
         QPainter *pPainter = new QPainter();
         pPainter->begin(this);
-        mpBoard->Draw(pPainter);
+        mpGame->Draw(pPainter);
         pPainter->end();
 
         if (nullptr != pPainter) { delete pPainter; }
@@ -55,5 +60,14 @@ void CMainWindow::contextMenuEvent(QContextMenuEvent *apEvent)
     if (nullptr != apEvent && apEvent->reason() == QContextMenuEvent::Mouse)
     {
         // code
+    }
+}
+
+void CMainWindow::tick()
+{
+    if (nullptr != mpGame)
+    {
+        mpGame->Play(Cell_Red, Cell_White);
+        repaint();
     }
 }

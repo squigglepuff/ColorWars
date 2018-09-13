@@ -23,7 +23,7 @@ public:
     CBoard& operator=(const CBoard& aCls);
 
     // Workers.
-    void Create(u32 uCellSz, QPointF aqCenter);
+    void Create(u32 uCellSz, SPoint aqCenter);
     void Destroy();
 
     void Draw(QPainter *pPainter = nullptr);
@@ -47,7 +47,7 @@ public:
     void SetBoardSize(u32 uSz = 2);
 
 private:
-    std::vector<QPointF> CalcTessPos(QPointF& aStart, u32 iLayerIdx, u32 uCellSz, u32 uTessLegLen);
+    std::vector<SPoint> CalcTessPos(SPoint& aStart, u32 iLayerIdx, u32 uCellSz, u32 uTessLegLen);
 
     u32 miSize; //!< Number of tessellation layers for the board. (Default = 2)
     std::vector<CHoneyComb*> mpBoardCombs; //!< Board honeycombs. (array of pointers)

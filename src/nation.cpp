@@ -82,7 +82,7 @@ bool CNation::Add(CHoneyComb *pComb, u32 iCellIdx)
         // Set the color of the cell in question.
         for (std::vector<u32>::iterator pCellIter = mvOwnedCells.at(pComb).begin(); pCellIter != mvOwnedCells.at(pComb).end(); ++pCellIter)
         {
-            pComb->GetCellAt((*pCellIter)).SetColor(meColor);
+            pComb->GetCellAt((*pCellIter))->SetColor(meColor);
         }
 
         bSuccess = true;

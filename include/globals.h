@@ -83,6 +83,23 @@ enum ECellColors
     Comb_Mixed = 0xcff1 //!< Only used by honeycombs and not individual cells!
 };
 
+// Custom data structures.
+struct SPoint
+{
+    float mX;
+    float mY;
+
+    float x() { return mX; }
+    float y() { return mY; }
+
+    void setX(float aX) { mX = aX; }
+    void setY(float aY) { mY = aY; }
+
+    SPoint() : mX{0.0f}, mY{0.0f} { /* Intentionally left blank. */ }
+    SPoint(float aX, float aY) : mX{aX}, mY{aY} { /* Intentionally left blank. */ }
+};
+
+// External functions and variables.
 extern std::map<ECellColors, QString> g_ColorNameMap;
 
 #endif // #if !defined(_CELL_COLORS)

@@ -57,14 +57,14 @@ CBoard& CBoard::operator =(const CBoard& aCls)
  * \param uCellSz - This is the size of the cells for the combs.
  * \param aqCenter - The center of the board.
  */
-void CBoard::Create(u32 uCellSz, QPointF aqCenter)
+void CBoard::Create(u32 uCellSz, SPoint aqCenter)
 {
     const u32 c_uCellRadius = uCellSz / 2;
     const float c_nCombSize = static_cast<float>(c_uCellRadius * CELL_COMB_RATIO);
     float nTessSz = (c_nCombSize * TESS_COMBSZ_TO_TESSSZ);
 
     // Explicitly set the center comb.
-    QPointF qStartPos = aqCenter;
+    SPoint qStartPos = aqCenter;
 
     CHoneyComb* pTmpComb = new CHoneyComb();
     pTmpComb->SetCellSize(uCellSz);
@@ -86,10 +86,10 @@ void CBoard::Create(u32 uCellSz, QPointF aqCenter)
         for (u32 iLyrIdx = 0; iLyrIdx < miSize; ++iLyrIdx)
         {
             // Add the new combs.
-            std::vector<QPointF> vLayerPos = CalcTessPos(qStartPos, iLyrIdx, uCellSz, nTessSz);
+            std::vector<SPoint> vLayerPos = CalcTessPos(qStartPos, iLyrIdx, uCellSz, nTessSz);
 
             qInfo("Positioning %lu honeycombs...", vLayerPos.size());
-            for (std::vector<QPointF>::iterator pPtIter = vLayerPos.begin(); pPtIter != vLayerPos.end(); ++pPtIter)
+            for (std::vector<SPoint>::iterator pPtIter = vLayerPos.begin(); pPtIter != vLayerPos.end(); ++pPtIter)
             {
                 CHoneyComb* pTmpComb = new CHoneyComb();
                 pTmpComb->SetCellSize(uCellSz);
@@ -109,6 +109,14 @@ void CBoard::Create(u32 uCellSz, QPointF aqCenter)
 
                     ++eClr;
                     if (static_cast<u32>(Cell_Gray) < eClr) { eClr = static_cast<u32>(Cell_Red); }
+                }
+                else
+                {
+                    // Create a white nation.
+                    // We use the size of the vector here as it's representative of the comb's index when the comb is pushed on it (0-based index).
+                    CNation* pTmpNat = new CNation();
+                    pTmpNat->Create(Cell_White, pTmpComb, g_ColorNameMap[Cell_White]);
+                    mvNations.push_back(pTmpNat);
                 }
 
                 mpBoardCombs.push_back(pTmpComb);
@@ -236,7 +244,7 @@ CHoneyComb** CBoard::GetNeighbors(CHoneyComb *pComb)
         {
             // Get this comb's position and size.
             const float c_nTessSz = (pComb->GetCombSize() * TESS_COMBSZ_TO_TESSSZ);
-            const QPointF& c_qPos = pComb->GetPosition();
+            SPoint qPos = pComb->GetPosition();
 
             // Now, iterate over the combs and collect all 6 neighbors (if possible).
             u32 iCombIdx = 0;
@@ -244,8 +252,8 @@ CHoneyComb** CBoard::GetNeighbors(CHoneyComb *pComb)
             {
                 // Setup our collision variables.
                 // Top collision-vertex.
-                float nX = c_qPos.x() + (c_nTessSz * TESS_X_SHIFT);
-                float nY = c_qPos.y() - (c_nTessSz * TESS_Y_SHIFT);
+                float nX = qPos.x() + (c_nTessSz * TESS_X_SHIFT);
+                float nY = qPos.y() - (c_nTessSz * TESS_Y_SHIFT);
                 if ((*pIter)->PointInComb(QPoint(nX, nY))) { pvNeighbors[iCombIdx] = (*pIter); ++iCombIdx; continue; }
 
                 // Top-right collision-vertex.
@@ -335,7 +343,7 @@ void CBoard::SetBoardSize(u32 uSz)
  * This method is used to calculate all the positions of the honeycombs being tessellated for a given layer. These are calculated using a basic hexagon multiplied by the layer index.
  * Algorithm is as follows:
  *
- *  new QPointF[6 * (iLayerIdx+1)]
+ *  new SPoint[6 * (iLayerIdx+1)]
  *  for point in array:
  *      if point is hexagon vertex:
  *          calculate next vertex.
@@ -348,9 +356,9 @@ void CBoard::SetBoardSize(u32 uSz)
  *
  * \param aStart - The start position (should be top-most comb).
  * \param iLayerIdx - The layer index we're at.
- * \return Pointer which references a heap-allocated array of QPointF references or nullptr upon error.
+ * \return Pointer which references a heap-allocated array of SPoint references or nullptr upon error.
  */
-std::vector<QPointF> CBoard::CalcTessPos(QPointF& aStart, u32 iLayerIdx, u32 uCellSz, u32 uTessLegLen)
+std::vector<SPoint> CBoard::CalcTessPos(SPoint& aStart, u32 iLayerIdx, u32 uCellSz, u32 uTessLegLen)
 {
     const u32 c_uCellRadius = uCellSz / 2;
     const float c_nCombSize = static_cast<float>(c_uCellRadius * CELL_COMB_RATIO);
@@ -363,8 +371,8 @@ std::vector<QPointF> CBoard::CalcTessPos(QPointF& aStart, u32 iLayerIdx, u32 uCe
     float nTheta = static_cast<float>(MAX_DEGREE - c_nDegreePerAngle); // We start with a negative degree.
 
     // Create the array.
-    std::vector<QPointF> mpPointArr;
-    mpPointArr.push_back(QPointF(nX, nY));
+    std::vector<SPoint> mpPointArr;
+    mpPointArr.push_back(SPoint(nX, nY));
 
     // Calculate the next position.
     float nThetaRad = static_cast<float>((nTheta - TESS_ROTATION) * (M_PI / 180.0f));
@@ -380,7 +388,7 @@ std::vector<QPointF> CBoard::CalcTessPos(QPointF& aStart, u32 iLayerIdx, u32 uCe
     for (size_t iIdx = 1; c_iNumPoints > iIdx; ++iIdx)
     {
         // Set the comb position.
-        mpPointArr.push_back(QPointF(nX + nXDelta, nY + nYDelta));
+        mpPointArr.push_back(SPoint(nX + nXDelta, nY + nYDelta));
 
         if (floor(nXDelta) <= floor(nNxtVertX) + 2 &&
             floor(nXDelta) >= floor(nNxtVertX) - 2 &&
