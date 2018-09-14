@@ -123,20 +123,14 @@ bool CCell::Draw(QPainter *pPainter)
     return bSuccess;
 }
 
-bool CCell::PointInHex(const QPoint& aPt)
+bool CCell::PointInHex(SPoint &aPt)
 {
-    bool bSuccess = false;
-    if (!aPt.isNull())
-    {
-        const float c_nInscribedRadius = (static_cast<float>(sqrt(3)) / 2.0) * (mnSize / 2.0f);
-        float nOppSqr = pow( abs(aPt.x() - mPosition.x()), 2.0);
-        float nAdjSqr = pow( abs(aPt.y() - mPosition.y()), 2.0);
-        float nDelta = sqrt(nOppSqr + nAdjSqr);
+    const float c_nInscribedRadius = (static_cast<float>(sqrt(3)) / 2.0) * (mnSize / 2.0f);
+    float nOppSqr = pow( abs(aPt.x() - mPosition.x()), 2.0);
+    float nAdjSqr = pow( abs(aPt.y() - mPosition.y()), 2.0);
+    float nDelta = sqrt(nOppSqr + nAdjSqr);
 
-        bSuccess = (nDelta < c_nInscribedRadius) ? true : false;
-    }
-
-    return bSuccess;
+    return (nDelta < c_nInscribedRadius) ? true : false;
 }
 
 float CCell::GetSize()
@@ -251,7 +245,7 @@ bool CHoneyComb::Draw(QPainter *pPainter)
     return bSuccess;
 }
 
-bool CHoneyComb::PointInComb(const QPoint &aPt)
+bool CHoneyComb::PointInComb(SPoint &aPt)
 {
     bool bSuccess = false;
 
@@ -396,9 +390,13 @@ size_t CHoneyComb::GetCellIdxNotColor(ECellColors eIsNotColor)
     size_t iCellIdx = 0;
     if (IsInitialized())
     {
-        for (std::vector<CCell*>::iterator pIter = mpCells.begin(); pIter != mpCells.end() && (*pIter)->GetColor() != eIsNotColor; ++pIter, ++iCellIdx)
+        for (std::vector<CCell*>::iterator pIter = mpCells.begin(); pIter != mpCells.end(); ++pIter, ++iCellIdx)
         {
-            // Intentionally left blank.
+            CCell* pTmp = (*pIter);
+            if (pTmp->GetColor() != eIsNotColor)
+            {
+                break;
+            }
         }
     }
 
@@ -410,9 +408,13 @@ size_t CHoneyComb::GetCellIdxColor(ECellColors eIsColor)
     size_t iCellIdx = 0;
     if (IsInitialized())
     {
-        for (std::vector<CCell*>::iterator pIter = mpCells.begin(); pIter != mpCells.end() && (*pIter)->GetColor() == eIsColor; ++pIter, ++iCellIdx)
+        for (std::vector<CCell*>::iterator pIter = mpCells.begin(); pIter != mpCells.end(); ++pIter, ++iCellIdx)
         {
-            // Intentionally left blank.
+            CCell* pTmp = (*pIter);
+            if (pTmp->GetColor() == eIsColor)
+            {
+                break;
+            }
         }
     }
 
@@ -442,6 +444,14 @@ void CHoneyComb::SetCombColor(ECellColors aeClr)
 {
     if (IsInitialized())
     {
+        meCombColor = aeClr;
+    }
+}
+
+void CHoneyComb::SetAllCellColor(ECellColors aeClr)
+{
+    if (IsInitialized())
+    {
         for (std::vector<CCell*>::iterator pIter = mpCells.begin(); pIter != mpCells.end(); ++pIter)
         {
             CCell *pTmpCell = (*pIter);
@@ -466,6 +476,12 @@ void CHoneyComb::RecalcPositions()
          *
          * This means that this method makes use of the consts in friend class CCell.
          */
+
+        // FIRST: Clear the cell vector to prevent weirdness.
+        while (mpCells.begin() != mpCells.end())
+        {
+            mpCells.pop_back();
+        }
 
         // Simple variable to help us track half-height of the polygon.
         const float c_nCombSize = GetCombSize();

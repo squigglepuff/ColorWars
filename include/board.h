@@ -36,8 +36,8 @@ public:
     CHoneyComb* GetComb(CombIterator pIter);
     CHoneyComb* GetComb(u32 uCombIdx = 0);
 
-    CHoneyComb **GetNeighbors(CHoneyComb *pComb = nullptr);
-    CHoneyComb **GetNeighbors(u32 uCombIdx = 0);
+    std::vector<CHoneyComb*> GetNeighbors(CHoneyComb *pComb = nullptr);
+    std::vector<CHoneyComb*> GetNeighbors(u32 uCombIdx = 0);
 
     std::vector<CNation*> GetNationList();
 

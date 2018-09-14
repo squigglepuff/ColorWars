@@ -22,6 +22,8 @@ void SetupColorNames()
 
 int main(int argc, char *argv[])
 {
+    SetupColorNames();
+
     QApplication a(argc, argv);
     CMainWindow w;
     w.show();

@@ -3,6 +3,9 @@
 #include <QTimer>
 #include "include/mainwindow.h"
 
+// FOR DEBUGGING ONLY!
+QPointF l_CollisionPoints[NUM_HEX_VERTS];
+
 CMainWindow::CMainWindow(QWidget *parent) : QMainWindow(parent), mpGame{nullptr}, mpTicker{nullptr}
 {
     const u32 c_iWndSz = 1024;
@@ -29,6 +32,7 @@ CMainWindow::CMainWindow(QWidget *parent) : QMainWindow(parent), mpGame{nullptr}
 
     // Setup the timer.
     mpTicker = new QTimer();
+//    mpTicker->setSingleShot(true);
     connect(mpTicker, &QTimer::timeout, this, &CMainWindow::tick);
     mpTicker->start(1000);
 }
@@ -45,6 +49,11 @@ void CMainWindow::paintEvent(QPaintEvent *apEvent)
         QPainter *pPainter = new QPainter();
         pPainter->begin(this);
         mpGame->Draw(pPainter);
+
+        // Draw the testing collision points.
+        pPainter->setPen(QPen(QBrush(Qt::red), 2.0f, Qt::DashDotDotLine));
+        pPainter->setBrush(Qt::NoBrush);
+        pPainter->drawPolygon(l_CollisionPoints, NUM_HEX_VERTS);
         pPainter->end();
 
         if (nullptr != pPainter) { delete pPainter; }
@@ -67,7 +76,17 @@ void CMainWindow::tick()
 {
     if (nullptr != mpGame)
     {
-        mpGame->Play(Cell_Red, Cell_White);
+        std::vector<ECellColors> vRandClr = {Cell_Red, Cell_Orange, Cell_Yellow, Cell_Lime, Cell_Green,
+                                             Cell_Cyan, Cell_Blue, Cell_Purple, Cell_Magenta, Cell_Pink,
+                                             Cell_Brown, Cell_Gray};
+
+        u32 uRandIdx = static_cast<u32>(vRandClr.size() % rand());
+        ECellColors eAggressor = vRandClr[uRandIdx];
+
+        uRandIdx = static_cast<u32>(vRandClr.size() % rand());
+        ECellColors eVictim = (mpGame->NationExists(Cell_White)) ? Cell_White : vRandClr[uRandIdx];
+
+        mpGame->Play(eAggressor, eVictim);
         repaint();
     }
 }

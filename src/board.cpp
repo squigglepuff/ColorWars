@@ -1,5 +1,8 @@
 #include "include/board.h"
 
+// FOR DEBUGGING ONLY!
+extern QPointF l_CollisionPoints[NUM_HEX_VERTS];
+
 CBoard::CBoard() : miSize{2}
 {
     // Intentionally left blank.
@@ -19,17 +22,19 @@ CBoard::~CBoard()
 {
     for (CombIterator pIter = mpBoardCombs.begin(); pIter != mpBoardCombs.end(); ++pIter)
     {
-        if (nullptr != *pIter)
+        CHoneyComb *pTmp = (*pIter);
+        if (nullptr != pTmp)
         {
-            delete (*pIter);
+            delete pTmp;
         }
     }
 
     for (std::vector<CNation*>::iterator pNatIter = mvNations.end(); pNatIter != mvNations.begin(); --pNatIter)
     {
-        if (nullptr != *pNatIter)
+        CNation *pTmp = (*pNatIter);
+        if (nullptr != pTmp)
         {
-            delete (*pNatIter);
+            delete pTmp;
         }
     }
 
@@ -99,13 +104,35 @@ void CBoard::Create(u32 uCellSz, SPoint aqCenter)
                 if ((miSize-1) == iLyrIdx)
                 {
                     ECellColors eColor = static_cast<ECellColors>(eClr);
-                    pTmpComb->SetCombColor(eColor);
+                    pTmpComb->SetAllCellColor(eColor);
 
                     // Create this color's nation.
                     // We use the size of the vector here as it's representative of the comb's index when the comb is pushed on it (0-based index).
-                    CNation* pTmpNat = new CNation();
-                    pTmpNat->Create(eColor, pTmpComb, g_ColorNameMap[eColor]);
-                    mvNations.push_back(pTmpNat);
+                    bool bFoundNation = false;
+                    for (std::vector<CNation*>::iterator pNatIter = mvNations.begin(); pNatIter != mvNations.end(); ++pNatIter)
+                    {
+                        if ((*pNatIter)->GetNationColor() == eColor)
+                        {
+                            // Add to this nation.
+                            (*pNatIter)->Add(pTmpComb, 0);
+                            (*pNatIter)->Add(pTmpComb, 1);
+                            (*pNatIter)->Add(pTmpComb, 2);
+                            (*pNatIter)->Add(pTmpComb, 3);
+                            (*pNatIter)->Add(pTmpComb, 4);
+                            (*pNatIter)->Add(pTmpComb, 5);
+                            (*pNatIter)->Add(pTmpComb, 6);
+
+                            bFoundNation = true;
+                            break;
+                        }
+                    }
+
+                    if (!bFoundNation)
+                    {
+                        CNation* pTmpNat = new CNation();
+                        pTmpNat->Create(eColor, pTmpComb, g_ColorNameMap[eColor]);
+                        mvNations.push_back(pTmpNat);
+                    }
 
                     ++eClr;
                     if (static_cast<u32>(Cell_Gray) < eClr) { eClr = static_cast<u32>(Cell_Red); }
@@ -114,9 +141,31 @@ void CBoard::Create(u32 uCellSz, SPoint aqCenter)
                 {
                     // Create a white nation.
                     // We use the size of the vector here as it's representative of the comb's index when the comb is pushed on it (0-based index).
-                    CNation* pTmpNat = new CNation();
-                    pTmpNat->Create(Cell_White, pTmpComb, g_ColorNameMap[Cell_White]);
-                    mvNations.push_back(pTmpNat);
+                    bool bFoundNation = false;
+                    for (std::vector<CNation*>::iterator pNatIter = mvNations.begin(); pNatIter != mvNations.end(); ++pNatIter)
+                    {
+                        if ((*pNatIter)->GetNationColor() == Cell_White)
+                        {
+                            // Add to this nation.
+                            (*pNatIter)->Add(pTmpComb, 0);
+                            (*pNatIter)->Add(pTmpComb, 1);
+                            (*pNatIter)->Add(pTmpComb, 2);
+                            (*pNatIter)->Add(pTmpComb, 3);
+                            (*pNatIter)->Add(pTmpComb, 4);
+                            (*pNatIter)->Add(pTmpComb, 5);
+                            (*pNatIter)->Add(pTmpComb, 6);
+
+                            bFoundNation = true;
+                            break;
+                        }
+                    }
+
+                    if (!bFoundNation)
+                    {
+                        CNation* pTmpNat = new CNation();
+                        pTmpNat->Create(Cell_White, pTmpComb, g_ColorNameMap[Cell_White]);
+                        mvNations.push_back(pTmpNat);
+                    }
                 }
 
                 mpBoardCombs.push_back(pTmpComb);
@@ -234,55 +283,67 @@ CHoneyComb* CBoard::GetComb(u32 uCombIdx)
  * \param pComb - Honeycomb to gather the neighbors of.
  * \return CHoneyComb pointer array of the neighbors, or nullptr if no neighbors.
  */
-CHoneyComb** CBoard::GetNeighbors(CHoneyComb *pComb)
+std::vector<CHoneyComb *> CBoard::GetNeighbors(CHoneyComb *pComb)
 {
-    CHoneyComb** pvNeighbors = nullptr; // Maximum of 6 neighbors.
+    std::vector<CHoneyComb*> vNeighbors; // Maximum of 6 neighbors.
     if (nullptr != pComb)
     {
-        pvNeighbors = new CHoneyComb*[NUM_HEX_VERTS]; // Maximum of 6 neighbors.
-        if (nullptr != pvNeighbors)
+        // Get this comb's position and size.
+        const u32 uCellSz = static_cast<u32>(pComb->GetCellSize() / 2.0f);
+        const float c_nCombSize = static_cast<float>(uCellSz * CELL_COMB_RATIO);
+        const float c_nCombCircumRadius = (c_nCombSize * TESS_COMBSZ_TO_TESSSZ);
+        const float c_nDegreePerAngle = 180.0f / 3.0f; // Should be 60.0f
+
+        SPoint qPos = pComb->GetPosition();
+
+        float nX = qPos.x();
+        float nY = qPos.y() - c_nCombCircumRadius;
+        float nTheta = static_cast<float>(MAX_DEGREE - c_nDegreePerAngle);
+
+        // Calculate the tessellation positions that'll be used for collision detection.
+        std::vector<SPoint> vCollPos;
+        for (size_t iIdx = 0; NUM_HEX_VERTS > iIdx; ++iIdx)
         {
-            // Get this comb's position and size.
-            const float c_nTessSz = (pComb->GetCombSize() * TESS_COMBSZ_TO_TESSSZ);
-            SPoint qPos = pComb->GetPosition();
+            // Set the vertex position.
+            SPoint qPos(nX, nY);
+            vCollPos.push_back(qPos);
 
-            // Now, iterate over the combs and collect all 6 neighbors (if possible).
-            u32 iCombIdx = 0;
-            for (CombIterator pIter = GetCombIterator(); pIter != mpBoardCombs.end(); ++pIter)
+            // Calculate the next position.
+            float nThetaRad = static_cast<float>((nTheta - TESS_ROTATION) * (M_PI / 180.0f));
+            float nXDelta = c_nCombCircumRadius * sin(nThetaRad);
+            float nYDelta = c_nCombCircumRadius * cos(nThetaRad);
+
+            // Subtract both.
+            nX += nXDelta;
+            nY += nYDelta;
+
+            nTheta += c_nDegreePerAngle;
+            if (nTheta >= MAX_DEGREE)
             {
-                // Setup our collision variables.
-                // Top collision-vertex.
-                float nX = qPos.x() + (c_nTessSz * TESS_X_SHIFT);
-                float nY = qPos.y() - (c_nTessSz * TESS_Y_SHIFT);
-                if ((*pIter)->PointInComb(QPoint(nX, nY))) { pvNeighbors[iCombIdx] = (*pIter); ++iCombIdx; continue; }
+                nTheta -= MAX_DEGREE;
+            }
+        }
 
-                // Top-right collision-vertex.
-                nX += (c_nTessSz * HEX_LONG_SHORT) * HEX_HALF_WIDTH;
-                nY += (c_nTessSz * HEX_SHORT_START);
-                if ((*pIter)->PointInComb(QPoint(nX, nY))) { pvNeighbors[iCombIdx] = (*pIter); ++iCombIdx; continue; }
-
-                // Bottom-right collision-vertex.
-                nY += (c_nTessSz * HEX_LONG_SHORT);
-                if ((*pIter)->PointInComb(QPoint(nX, nY))) { pvNeighbors[iCombIdx] = (*pIter); ++iCombIdx; continue; }
-
-                // Bottom collision-vertex.
-                nX -= (c_nTessSz * HEX_LONG_SHORT) * HEX_HALF_WIDTH;
-                nY += (c_nTessSz * HEX_SHORT_START);
-                if ((*pIter)->PointInComb(QPoint(nX, nY))) { pvNeighbors[iCombIdx] = (*pIter); ++iCombIdx; continue; }
-
-                // Bottom-left collision-vertex.
-                nX -= (c_nTessSz * HEX_LONG_SHORT) * HEX_HALF_WIDTH;
-                nY -= (c_nTessSz * HEX_SHORT_START);
-                if ((*pIter)->PointInComb(QPoint(nX, nY))) { pvNeighbors[iCombIdx] = (*pIter); ++iCombIdx; continue; }
-
-                // Top-left collision-vertex.
-                nY -= (c_nTessSz * HEX_LONG_SHORT);
-                if ((*pIter)->PointInComb(QPoint(nX, nY))) { pvNeighbors[iCombIdx] = (*pIter); ++iCombIdx; continue; }
+        // Now, iterate over the combs and collect all 6 neighbors (if possible).
+        for (CombIterator pIter = GetCombIterator(); pIter != mpBoardCombs.end(); ++pIter)
+        {
+            CHoneyComb *pTmpComb = (*pIter);
+            if (nullptr != pTmpComb)
+            {
+                for (std::vector<SPoint>::iterator pCollIter = vCollPos.begin(); pCollIter != vCollPos.end(); ++pCollIter)
+                {
+                    if (pTmpComb->PointInComb( (*pCollIter) ))
+                    {
+                        vNeighbors.push_back(pTmpComb);
+                        l_CollisionPoints[vNeighbors.size()-1].setX((*pCollIter).x());
+                        l_CollisionPoints[vNeighbors.size()-1].setY((*pCollIter).y());
+                    }
+                }
             }
         }
     }
 
-    return pvNeighbors;
+    return vNeighbors;
 }
 
 /*!
@@ -293,7 +354,7 @@ CHoneyComb** CBoard::GetNeighbors(CHoneyComb *pComb)
  * \param uCombIdx - The index of the comb to gather the neighbors of.
  * \return CHoneyComb pointer array of the neighbors, or nullptr if no neighbors.
  */
-CHoneyComb** CBoard::GetNeighbors(u32 uCombIdx)
+std::vector<CHoneyComb *> CBoard::GetNeighbors(u32 uCombIdx)
 {
     return GetNeighbors(GetComb(uCombIdx));
 }

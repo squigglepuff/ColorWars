@@ -65,6 +65,8 @@ public:
     u32 GetDiceMax();
     CBoard* GetBoard();
 
+    bool NationExists(ECellColors eColor);
+
     // Setters.
     void SetDiceMax(u32 iMaxium = 0xffffffff);
 

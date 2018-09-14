@@ -70,7 +70,7 @@ public:
     // Workers.
     bool Draw(QPainter *pPainter = nullptr);
 
-    bool PointInHex(const QPoint& aPt);
+    bool PointInHex(SPoint &aPt);
 
     // Getters.
     float GetSize();
@@ -122,7 +122,7 @@ public:
     // Workers.
     bool Draw(QPainter *pPainter = nullptr);
 
-    bool PointInComb(const QPoint& aPt);
+    bool PointInComb(SPoint &aPt);
 
     bool CombIsAllColor(ECellColors aeClr);
     bool CombContainsColor(ECellColors aeClr);
@@ -150,6 +150,7 @@ public:
     void SetCellSize(const float anSize);
     void SetPosition(const SPoint& aqPosition);
     void SetCombColor(ECellColors aeClr = Cell_White);
+    void SetAllCellColor(ECellColors aeClr = Cell_White);
 
 private:
     void RecalcPositions();
