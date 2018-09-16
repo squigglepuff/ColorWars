@@ -45,39 +45,40 @@ HEADERS += \
     include/game.h \
     include/nation.h
 
-BUILDNO = $$system(src/build.number)
-unix:DEFINES += BUILD=$${BUILDNO}
-
 # Specify Build settings.
+unix {
+    BUILDNO = $$system(src/build.number)
+    DEFINES += BUILD=$${BUILDNO}
 
-CONFIG(release, debug|release) {
-    message(Building release target)
-    DESTDIR = $$_PRO_FILE_PWD_/build/release/bin
-    OBJECTS_DIR = $$_PRO_FILE_PWD_/build/release/.obj
-    MOC_DIR = $$_PRO_FILE_PWD_/build/release/.moc
-    RCC_DIR = $$_PRO_FILE_PWD_/build/release/.rcc
-    UI_DIR = $$_PRO_FILE_PWD_/build/release/.ui
+    CONFIG(release, debug|release) {
+        message(Building release target)
+        DESTDIR = $$_PRO_FILE_PWD_/build/release/bin
+        OBJECTS_DIR = $$_PRO_FILE_PWD_/build/release/.obj
+        MOC_DIR = $$_PRO_FILE_PWD_/build/release/.moc
+        RCC_DIR = $$_PRO_FILE_PWD_/build/release/.rcc
+        UI_DIR = $$_PRO_FILE_PWD_/build/release/.ui
+    }
+
+    CONFIG(debug, debug|release) {
+        message(Building debug target)
+        DESTDIR = $$_PRO_FILE_PWD_/build/debug/bin
+        OBJECTS_DIR = $$_PRO_FILE_PWD_/build/debug/.obj
+        MOC_DIR = $$_PRO_FILE_PWD_/build/debug/.moc
+        RCC_DIR = $$_PRO_FILE_PWD_/build/debug/.rcc
+        UI_DIR = $$_PRO_FILE_PWD_/build/debug/.ui
+    }
+
+
+    # System Information.
+    message($$TARGET ($$VERSION Build: $${BUILDNO}))
+    message(Build OS: $$QMAKE_HOST.os $$QMAKE_HOST.version_string ($$QMAKE_HOST.version))
+    message(Build Arch: $$QMAKE_HOST.arch)
+    message(Build CPUs: $$QMAKE_HOST.cpu_count)
+    message(Build Hostname: $$QMAKE_HOST.name)
+    message(Qt Version: $$QT_VERSION)
+    message(QMake path: $$QMAKE_QMAKE)
+    message(C compiler: $$QMAKE_CC)
+    message(C++ compiler: $$QMAKE_CXX)
+    message(Current output directory: $$OUT_PWD)
+    message(Build Directory: $$DESTDIR)
 }
-
-CONFIG(debug, debug|release) {
-    message(Building debug target)
-    DESTDIR = $$_PRO_FILE_PWD_/build/debug/bin
-    OBJECTS_DIR = $$_PRO_FILE_PWD_/build/debug/.obj
-    MOC_DIR = $$_PRO_FILE_PWD_/build/debug/.moc
-    RCC_DIR = $$_PRO_FILE_PWD_/build/debug/.rcc
-    UI_DIR = $$_PRO_FILE_PWD_/build/debug/.ui
-}
-
-
-# System Information.
-message($$TARGET ($$VERSION Build: $${BUILDNO}))
-message(Build OS: $$QMAKE_HOST.os $$QMAKE_HOST.version_string ($$QMAKE_HOST.version))
-message(Build Arch: $$QMAKE_HOST.arch)
-message(Build CPUs: $$QMAKE_HOST.cpu_count)
-message(Build Hostname: $$QMAKE_HOST.name)
-message(Qt Version: $$QT_VERSION)
-message(QMake path: $$QMAKE_QMAKE)
-message(C compiler: $$QMAKE_CC)
-message(C++ compiler: $$QMAKE_CXX)
-message(Current output directory: $$OUT_PWD)
-message(Build Directory: $$DESTDIR)

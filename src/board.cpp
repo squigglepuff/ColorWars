@@ -444,6 +444,8 @@ std::vector<SPoint> CBoard::CalcTessPos(SPoint& aStart, u32 iLayerIdx, u32 uCell
     float nXDelta = c_nCombCircumRadius * sin(nThetaRad);
     float nYDelta = c_nCombCircumRadius * cos(nThetaRad);
 
+    const u32 uVarience = static_cast<u32>(uCellSz * 0.05f);
+
     // Begin calculating the points (counter-clockwise, starting at top).
     //!\NOTE: Our hexagons have the long-leg vertical, meaning they're pointed at the top. (height > width)
     for (size_t iIdx = 1; c_iNumPoints > iIdx; ++iIdx)
@@ -451,10 +453,10 @@ std::vector<SPoint> CBoard::CalcTessPos(SPoint& aStart, u32 iLayerIdx, u32 uCell
         // Set the comb position.
         mpPointArr.push_back(SPoint(nX + nXDelta, nY + nYDelta));
 
-        if (floor(nXDelta) <= floor(nNxtVertX) + 2 &&
-            floor(nXDelta) >= floor(nNxtVertX) - 2 &&
-            floor(nYDelta) <= floor(nNxtVertY) + 2 &&
-            floor(nYDelta) >= floor(nNxtVertY) - 2)
+        if (floor(nXDelta) <= floor(nNxtVertX) + uVarience &&
+            floor(nXDelta) >= floor(nNxtVertX) - uVarience &&
+            floor(nYDelta) <= floor(nNxtVertY) + uVarience &&
+            floor(nYDelta) >= floor(nNxtVertY) - uVarience)
         {
             // Add both.
             nX += nXDelta;

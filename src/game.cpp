@@ -25,7 +25,16 @@ CDice& CDice::operator=(const CDice& aCls)
 
 u32 CDice::Roll(u32 uMin, u32 uMax)
 {
-    muLastRoll = (uMax > 0) ? (static_cast<u32>(rand()) % uMax) + uMin : static_cast<u32>(rand());
+    u32 uRoll = floor(rand());
+    if (uRoll > uMax)
+    {
+        muLastRoll = (uMax > 0) ? (uRoll % uMax) + uMin : static_cast<u32>(uRoll);
+    }
+    else
+    {
+        muLastRoll = (uMax > 0) ? (uMax % uRoll) + uMin : static_cast<u32>(uRoll);
+    }
+
     return muLastRoll;
 }
 
@@ -37,12 +46,12 @@ u32 CDice::GetLastRoll()
 
 
 // ================================ Begin CGame Implementation ================================ //
-CGame::CGame() : mpDice{nullptr}, mpBoard{nullptr}, muDiceMax{0xffffffff}
+CGame::CGame() : mpDice{nullptr}, mpBoard{nullptr}, mpCanvas{nullptr}, muDiceMax{0xffffffff}, msTmpFileName{"colorwars_development.png"}
 {
     // Intentionally left blank.
 }
 
-CGame::CGame(const CGame& aCls) : mpDice{aCls.mpDice}, mpBoard{aCls.mpBoard}, muDiceMax{aCls.muDiceMax}
+CGame::CGame(const CGame& aCls) : mpDice{aCls.mpDice}, mpBoard{aCls.mpBoard}, mpCanvas{aCls.mpCanvas}, muDiceMax{aCls.muDiceMax}
 {
     // Intentionally left blank.
 }
@@ -84,11 +93,24 @@ void CGame::NewGame(u32 iDiceMax, u32 uCellSz, SPoint qCenter)
         mpBoard = new CBoard();
         mpBoard->Create(uCellSz, qCenter);
         mvNations = mpBoard->GetNationList();
+
+        // Update the canvas.
+        int iCanvasSz = static_cast<int>(qCenter.y() * 2);
+        mpCanvas = new QImage(iCanvasSz, iCanvasSz, QImage::Format_ARGB32);
+        mpCanvas->fill(Qt::transparent); // Fills the canvas with transparency.
+
+        // Update!
+        Draw();
     }
     else
     {
         qCritical("ERR: Cannot run NewGame on a started game! Please end the current game first!");
     }
+}
+
+void CGame::EndGame()
+{
+    if (nullptr != mpCanvas && !mpCanvas->isNull()) { delete mpCanvas; }
 }
 
 void CGame::Play(ECellColors eAggressor, ECellColors eVictim)
@@ -129,7 +151,7 @@ void CGame::Play(ECellColors eAggressor, ECellColors eVictim)
                     {*/
                         // Move large amount!
                         std::pair<bool, QString> rtnData = MoveColor(eAggressor, eVictim, 12);
-                        if (rtnData.first) { qInfo(rtnData.second.toStdString().c_str()); }
+                        if (rtnData.first) { qInfo(rtnData.second.toStdString().c_str()); Draw(); }
                         else { qCritical(rtnData.second.toStdString().c_str()); }
 //                    }
                 }
@@ -137,7 +159,7 @@ void CGame::Play(ECellColors eAggressor, ECellColors eVictim)
                 {
                     // Move medium amount!
                     std::pair<bool, QString> rtnData = MoveColor(eAggressor, eVictim, 6);
-                    if (rtnData.first) { qInfo(rtnData.second.toStdString().c_str()); }
+                    if (rtnData.first) { qInfo(rtnData.second.toStdString().c_str()); Draw(); }
                     else { qCritical(rtnData.second.toStdString().c_str()); }
                 }
             }
@@ -145,7 +167,7 @@ void CGame::Play(ECellColors eAggressor, ECellColors eVictim)
             {
                 // Move small amount!
                 std::pair<bool, QString> rtnData = MoveColor(eAggressor, eVictim, 3);
-                if (rtnData.first) { qInfo(rtnData.second.toStdString().c_str()); }
+                if (rtnData.first) { qInfo(rtnData.second.toStdString().c_str()); Draw(); }
                 else { qCritical(rtnData.second.toStdString().c_str()); }
             }
         }
@@ -154,14 +176,10 @@ void CGame::Play(ECellColors eAggressor, ECellColors eVictim)
         if (1 == mvNations.size())
         {
             qInfo(QString("%1 has won!").arg(g_ColorNameMap[mvNations[0]->GetNationColor()]).toStdString().c_str());
+            Draw();
             EndGame();
         }
     }
-}
-
-void CGame::EndGame()
-{
-    if (nullptr != mpDice) { delete mpDice; }
 }
 
 void CGame::Destroy()
@@ -292,11 +310,23 @@ std::pair<bool, QString> CGame::MoveColor(ECellColors eAggressor, ECellColors eV
     return rtnData;
 }
 
-void CGame::Draw(QPainter *pPainter)
+void CGame::Draw()
 {
     if (nullptr != mpBoard)
     {
+        QPainter *pPainter = new QPainter();
+        pPainter->begin(mpCanvas);
+
+        pPainter->setBackgroundMode(Qt::TransparentMode);
+        pPainter->setBackground(Qt::transparent);
+
         mpBoard->Draw(pPainter);
+        pPainter->end();
+
+        if (nullptr != pPainter) { delete pPainter; }
+
+        // Save the image.
+        mpCanvas->save(QString::fromStdString(msTmpFileName));
     }
 }
 
@@ -328,6 +358,11 @@ u32 CGame::GetDiceMax()
 CBoard* CGame::GetBoard()
 {
     return mpBoard;
+}
+
+QImage* CGame::GetCanvas()
+{
+    return mpCanvas;
 }
 
 void CGame::SetDiceMax(u32 iMaxium)

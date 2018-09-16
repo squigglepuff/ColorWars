@@ -1,6 +1,7 @@
 #ifndef GAME_H
 #define GAME_H
 
+#include <QImage>
 #include "include/nation.h"
 #include "include/board.h"
 
@@ -59,7 +60,7 @@ public:
 
     u32 DummyRoll();
 
-    void Draw(QPainter *pPainter = nullptr);
+    void Draw();
 
     // Getters.
     u32 GetDiceMax();
@@ -67,14 +68,18 @@ public:
 
     bool NationExists(ECellColors eColor);
 
+    QImage* GetCanvas();
+
     // Setters.
     void SetDiceMax(u32 iMaxium = 0xffffffff);
 
 private:
     CDice *mpDice; //!< Pointer to the dice used to make decisions.
     CBoard *mpBoard; //!< Pointer to the active game board.
+    QImage *mpCanvas; //!< The drawing canvas for the game.
     std::vector<CNation*> mvNations; //!< Vector of pointers to the current (live) nations at play.
     u32 muDiceMax; //!< The maximum roll amount for a dice "throw".
+    std::string msTmpFileName; //!< Temporary filename for the image to write to.
 };
 
 #endif // GAME_H

@@ -1,19 +1,28 @@
 #include <QtGui>
 #include <QMenu>
-#include <QTimer>
+#include <QHBoxLayout>
 #include "include/mainwindow.h"
 
 // FOR DEBUGGING ONLY!
 QPointF l_CollisionPoints[NUM_HEX_VERTS];
 
-CMainWindow::CMainWindow(QWidget *parent) : QMainWindow(parent), mpGame{nullptr}, mpTicker{nullptr}
+CMainWindow::CMainWindow(QWidget *parent) : QMainWindow(parent), mpGame{nullptr}, mpTicker{nullptr}, mpCanvas{nullptr}
 {
-    const u32 c_iWndSz = 1024;
-    SPoint qCenter(c_iWndSz / 2.0, c_iWndSz / 2.0);
+    // Intentionally left blank.
+}
 
+CMainWindow::~CMainWindow()
+{
+//    if (nullptr != mpGame) { mpGame->Destroy(); }
+}
+
+void CMainWindow::Setup()
+{
     // Setup the game.
-    mpGame = new CGame();
-    mpGame->NewGame(0xffffffff, 64, qCenter);
+//    mpGame = new CGame();
+
+    // Setup the Window GUI.
+    SetupUI();
 
     // Set the window properties.
     char *pWndTitle = new char[4096];
@@ -26,30 +35,38 @@ CMainWindow::CMainWindow(QWidget *parent) : QMainWindow(parent), mpGame{nullptr}
 #endif // #if defined(BUILD)
 
     setWindowTitle(QString::fromLatin1(pWndTitle));
-    resize(c_iWndSz, c_iWndSz);
+    resize(1280, 1024);
 
     if (nullptr != pWndTitle) { delete[] pWndTitle; }
 
-    // Setup the timer.
-    mpTicker = new QTimer();
-//    mpTicker->setSingleShot(true);
-    connect(mpTicker, &QTimer::timeout, this, &CMainWindow::tick);
-    mpTicker->start(1000);
+    stopGame(false);
 }
 
-CMainWindow::~CMainWindow()
+void CMainWindow::SetGamePtr(CGame* pGame)
 {
-    if (nullptr != mpGame) { mpGame->Destroy(); }
+    mpGame = pGame;
+}
+
+void CMainWindow::SetTickPtr(QTimer* pTimer)
+{
+    mpTicker = pTimer;
 }
 
 void CMainWindow::paintEvent(QPaintEvent *apEvent)
 {
     if (nullptr != apEvent)
     {
+        if (nullptr != mpGame && nullptr != mpGame->GetCanvas())
+        {
+            QImage qImg = mpGame->GetCanvas()->scaled(mpGameCanvas->size(), Qt::KeepAspectRatio);
+            mpGameCanvas->setPixmap(QPixmap::fromImage(qImg));
+        }
+
+        for (int iIdx = mpChatLog->count(); iIdx < g_LogList.size(); ++iIdx) { mpChatLog->addItem(g_LogList[iIdx]); }
+
+#if defined(__DBG_BUILD)
         QPainter *pPainter = new QPainter();
         pPainter->begin(this);
-        mpGame->Draw(pPainter);
-
         // Draw the testing collision points.
         pPainter->setPen(QPen(QBrush(Qt::red), 2.0f, Qt::DashDotDotLine));
         pPainter->setBrush(Qt::NoBrush);
@@ -57,6 +74,7 @@ void CMainWindow::paintEvent(QPaintEvent *apEvent)
         pPainter->end();
 
         if (nullptr != pPainter) { delete pPainter; }
+#endif // #if defined(__DBG_BUILD)
     }
     else
     {
@@ -68,25 +86,96 @@ void CMainWindow::contextMenuEvent(QContextMenuEvent *apEvent)
 {
     if (nullptr != apEvent && apEvent->reason() == QContextMenuEvent::Mouse)
     {
-        // code
+        QPoint qTransPos = mapToGlobal(apEvent->pos());
+
+        QMenu qMenu;
+        qMenu.addActions(mlActions);
+        qMenu.setGeometry(qTransPos.x(), qTransPos.y(), qMenu.width(), qMenu.height());
+        qMenu.exec();
     }
 }
 
-void CMainWindow::tick()
+void CMainWindow::playGame(bool)
 {
-    if (nullptr != mpGame)
+    mpTicker->start(100);
+    mlActions.at(0)->setText(tr("Start Game"));
+    mlActions.at(0)->setEnabled(false);
+    mlActions.at(1)->setEnabled(true);
+    mlActions.at(2)->setEnabled(true);
+}
+
+void CMainWindow::pauseGame(bool)
+{
+    mpTicker->stop();
+    mlActions.at(0)->setText(tr("Resume Game"));
+    mlActions.at(0)->setEnabled(true);
+    mlActions.at(1)->setEnabled(false);
+    mlActions.at(2)->setEnabled(true);
+}
+
+void CMainWindow::stopGame(bool)
+{
+    const u32 c_iCanvasSz = 2048;
+    SPoint qCenter(c_iCanvasSz / 2.0, c_iCanvasSz / 2.0);
+
+    mpTicker->stop();
+    mlActions.at(0)->setText(tr("Start Game"));
+    mlActions.at(0)->setEnabled(true);
+    mlActions.at(1)->setEnabled(false);
+    mlActions.at(2)->setEnabled(false);
+
+    mpGame->EndGame();
+    mpGame->NewGame(0xff, 128, qCenter);
+}
+
+void CMainWindow::SetupUI()
+{
+    // Setup the central widget first.
+    QWidget *pCentralWidget = new QWidget(this);
+    setCentralWidget(pCentralWidget);
+
+    // Setup the log widget.
+    mpChatLog = new QListWidget();
+    mpChatLog->setMaximumWidth(rect().width() / 3);
+    mpChatLog->setMinimumWidth(rect().width() / 8);
+    mpChatLog->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    mpChatLog->setToolTip(tr("Discord Chat Log"));
+
+    mpGameCanvas = new QLabel();
+    if (nullptr != mpGame && nullptr != mpGame->GetCanvas())
     {
-        std::vector<ECellColors> vRandClr = {Cell_Red, Cell_Orange, Cell_Yellow, Cell_Lime, Cell_Green,
-                                             Cell_Cyan, Cell_Blue, Cell_Purple, Cell_Magenta, Cell_Pink,
-                                             Cell_Brown, Cell_Gray};
-
-        u32 uRandIdx = static_cast<u32>(vRandClr.size() % rand());
-        ECellColors eAggressor = vRandClr[uRandIdx];
-
-        uRandIdx = static_cast<u32>(vRandClr.size() % rand());
-        ECellColors eVictim = (mpGame->NationExists(Cell_White)) ? Cell_White : vRandClr[uRandIdx];
-
-        mpGame->Play(eAggressor, eVictim);
-        repaint();
+        QImage qImg = mpGame->GetCanvas()->scaled(mpGameCanvas->size(), Qt::KeepAspectRatio);
+        mpGameCanvas->setPixmap(QPixmap::fromImage(qImg));
     }
+    else
+    {
+        mpGameCanvas->setPixmap(QPixmap());
+    }
+
+    mpGameCanvas->setScaledContents(true);
+    mpGameCanvas->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    mpGameCanvas->setMaximumSize(1024, 1024);
+
+    // Setup the layout.
+    QHBoxLayout *pLay = new QHBoxLayout();
+    pLay->addWidget(mpGameCanvas);
+    pLay->addWidget(mpChatLog);
+
+    pCentralWidget->setLayout(pLay);
+
+    // Setup the menu stuff.
+    mlActions.append(new QAction(tr("Play Game")));
+    mlActions[0]->setText(tr("Start Game"));
+    mlActions[0]->setEnabled(true);
+    connect(mlActions[0], &QAction::triggered, this, &CMainWindow::playGame);
+
+    mlActions.append(new QAction(tr("Pause Game")));
+    mlActions[1]->setText(tr("Pause Game"));
+    mlActions[1]->setEnabled(false);
+    connect(mlActions[1], &QAction::triggered, this, &CMainWindow::pauseGame);
+
+    mlActions.append(new QAction(tr("Stop Game")));
+    mlActions[2]->setText(tr("Stop Game"));
+    mlActions[2]->setEnabled(false);
+    connect(mlActions[2], &QAction::triggered, this, &CMainWindow::stopGame);
 }
