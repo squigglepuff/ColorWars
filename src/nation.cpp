@@ -86,7 +86,7 @@ bool CNation::Remove(CHoneyComb *pComb, u32 iCellIdx)
     if (nullptr != pComb && 0 < GetNationSize())
     {
         // Check to see if we even own this comb via it's color, then via our tracking.
-        if (pComb->GetCombColor() == meColor || pComb->GetCombColor() == Comb_Mixed)
+        if (pComb->CombContainsColor(meColor))
         {
             std::map<CHoneyComb*, std::vector<u32>>::iterator pMapIter;
             for (pMapIter = mvOwnedCells.begin(); pMapIter != mvOwnedCells.end(); ++pMapIter)
@@ -98,10 +98,11 @@ bool CNation::Remove(CHoneyComb *pComb, u32 iCellIdx)
                         if (*pIdxIter == iCellIdx)
                         {
                             // Remove this cell from our tracking.
-                            if (pMapIter->second.end() == pMapIter->second.erase(pIdxIter))
+                            pMapIter->second.erase(pIdxIter);
+                            if (0 >= pMapIter->second.size())
                             {
                                 // We don't, we need to also remove the comb!
-                                if (1 <= mvOwnedCells.size()) { mvOwnedCells.erase(pComb); }
+                                if (0 < mvOwnedCells.size()) { mvOwnedCells.erase(pComb); }
                                 else { mvOwnedCells.clear(); }
                             }
 
@@ -119,7 +120,7 @@ bool CNation::Remove(CHoneyComb *pComb, u32 iCellIdx)
         else
         {
             // Remove this comb as it's not ours anymore!
-            if (1 <= mvOwnedCells.size()) { mvOwnedCells.erase(pComb); }
+            if (1 < mvOwnedCells.size()) { mvOwnedCells.erase(pComb); }
             else { mvOwnedCells.clear(); }
             bSuccess = true;
         }

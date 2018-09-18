@@ -63,6 +63,7 @@ void CMainWindow::paintEvent(QPaintEvent *apEvent)
         }
 
         for (int iIdx = mpChatLog->count(); iIdx < g_LogList.size(); ++iIdx) { mpChatLog->addItem(g_LogList[iIdx]); }
+        mpChatLog->scrollToBottom();
 
 #if defined(__DBG_BUILD)
         QPainter *pPainter = new QPainter();
@@ -136,10 +137,11 @@ void CMainWindow::SetupUI()
 
     // Setup the log widget.
     mpChatLog = new QListWidget();
-    mpChatLog->setMaximumWidth(rect().width() / 3);
+    mpChatLog->setMaximumWidth(rect().width() / 2.5);
     mpChatLog->setMinimumWidth(rect().width() / 8);
     mpChatLog->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     mpChatLog->setToolTip(tr("Discord Chat Log"));
+    mpChatLog->setAutoScroll(true);
 
     mpGameCanvas = new QLabel();
     if (nullptr != mpGame && nullptr != mpGame->GetCanvas())

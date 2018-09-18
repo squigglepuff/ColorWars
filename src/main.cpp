@@ -26,11 +26,12 @@ void SetupColorNames()
 
 void HandleQLoggingGUI(QtMsgType type, const QMessageLogContext &context, const QString &msg)
 {
+    QString lMsg = "";
     switch(type)
     {
         case QtDebugMsg:
         {
-            QString lMsg = "[Debug]: ";
+            lMsg = "[Debug]: ";
             lMsg.append(msg.toLocal8Bit());
             lMsg.append(" <");
             lMsg.append(context.file);
@@ -39,37 +40,29 @@ void HandleQLoggingGUI(QtMsgType type, const QMessageLogContext &context, const 
             lMsg.append(" @ ");
             lMsg.append(context.function);
             lMsg.append(">");
-
-            g_LogList.append(lMsg);
             break;
         }
         case QtInfoMsg:
         {
-            QString lMsg = "[Info]: ";
+            lMsg = "[Info]: ";
             lMsg.append(msg.toLocal8Bit());
-
-            g_LogList.append(lMsg);
             break;
         }
         case QtWarningMsg:
         {
-            QString lMsg = "[Warning]: ";
+            lMsg = "[Warning]: ";
             lMsg.append(msg.toLocal8Bit());
-
-            g_LogList.append(lMsg);
             break;
         }
         case QtCriticalMsg:
         {
-            QString lMsg = "[Error]: ";
+            lMsg = "[Error]: ";
             lMsg.append(msg.toLocal8Bit());
-
-            g_LogList.append(lMsg);
             break;
         }
         case QtFatalMsg:
         {
-            QString lMsg = "[FATAL]: ";
+            lMsg = "[FATAL]: ";
             lMsg.append(msg.toLocal8Bit());
             lMsg.append(" <");
             lMsg.append(context.file);
@@ -78,11 +71,12 @@ void HandleQLoggingGUI(QtMsgType type, const QMessageLogContext &context, const 
             lMsg.append(" @ ");
             lMsg.append(context.function);
             lMsg.append(">");
-
-            g_LogList.append(lMsg);
             break;
         }
     }
+
+    fprintf(stdout, "%s\n", lMsg.toStdString().c_str());
+    g_LogList.append(lMsg);
 }
 
 void HandleQLogging(QtMsgType type, const QMessageLogContext &context, const QString &msg)

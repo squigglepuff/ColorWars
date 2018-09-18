@@ -110,7 +110,7 @@ void CGame::NewGame(u32 iDiceMax, u32 uCellSz, SPoint qCenter)
 
 void CGame::EndGame()
 {
-    if (nullptr != mpCanvas && !mpCanvas->isNull()) { delete mpCanvas; }
+//    if (nullptr != mpCanvas && !mpCanvas->isNull()) { delete mpCanvas; }
 }
 
 void CGame::Play(ECellColors eAggressor, ECellColors eVictim)
@@ -177,7 +177,7 @@ void CGame::Play(ECellColors eAggressor, ECellColors eVictim)
         {
             qInfo(QString("%1 has won!").arg(g_ColorNameMap[mvNations[0]->GetNationColor()]).toStdString().c_str());
             Draw();
-            EndGame();
+//            EndGame();
         }
     }
 }
@@ -247,7 +247,7 @@ std::pair<bool, QString> CGame::MoveColor(ECellColors eAggressor, ECellColors eV
                             pVictimNation->Remove(*pAggrIter, uCellIdx);
                             ++uCellsTaken;
 
-                            if (pCurrComb->CombIsAllColor(eAggressor)) { pCurrComb->SetCombColor(eAggressor); pVictimNation->Remove(*pAggrIter, uCellIdx); }
+                            if (pCurrComb->CombIsAllColor(eAggressor)) { pCurrComb->SetAllCellColor(eAggressor); pVictimNation->Remove(*pAggrIter, uCellIdx); }
                             else { pCurrComb->SetCombColor(Comb_Mixed); }
 
                             if (uCellsTaken >= uMvAmnt) { break; }
@@ -273,7 +273,7 @@ std::pair<bool, QString> CGame::MoveColor(ECellColors eAggressor, ECellColors eV
                                     pVictimNation->Remove(pNeighbor, uCellIdx);
                                     ++uCellsTaken;
 
-                                    if (pNeighbor->CombIsAllColor(eAggressor)) { pNeighbor->SetCombColor(eAggressor); pVictimNation->Remove(pNeighbor, uCellIdx); }
+                                    if (pNeighbor->CombIsAllColor(eAggressor)) { pNeighbor->SetAllCellColor(eAggressor); pVictimNation->Remove(pNeighbor, uCellIdx); }
                                     else { pNeighbor->SetCombColor(Comb_Mixed); }
 
                                     if (uCellsTaken >= uMvAmnt) { break; }
