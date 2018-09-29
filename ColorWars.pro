@@ -82,3 +82,8 @@ unix {
     message(Current output directory: $$OUT_PWD)
     message(Build Directory: $$DESTDIR)
 }
+
+DISTFILES +=
+
+RESOURCES += \
+    resources.qrc

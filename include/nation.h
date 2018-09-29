@@ -25,16 +25,16 @@ public:
     CNation *operator >>(CNation &aParent);
 
     // Workers.
-    void Create(ECellColors eClr = Cell_White, CHoneyComb *pStartComb = nullptr, QString sName = "White");
+    void Create(ECellColors eClr = Cell_White, QString sName = "White");
     void Destroy();
 
-    bool Add(CHoneyComb *pComb, u32 iCellIdx);
-    bool Remove(CHoneyComb *pComb, u32 iCellIdx);
+    bool Add(u64 uCellID);
+    bool Remove(u64 uCellID);
 
     CNation* Merge(CNation* pMother);
 
     // Getters.
-    std::vector<CHoneyComb*> GetAllCombs();
+    std::vector<u64> GetCellIDs();
 
     u32 GetNationSize();
     ECellColors GetNationColor();
@@ -45,7 +45,7 @@ public:
     void SetNationName(QString sName);
 
 private:
-    std::map<CHoneyComb*, std::vector<u32>> mvOwnedCells; //!< Map of owned cells of certain combs.
+    std::vector<u64> mvOwnedCells; //!< Map of owned cells of certain combs.
     ECellColors meColor; //!< Color of this nation.
     QString msName; //!< Name of this nation.
 };

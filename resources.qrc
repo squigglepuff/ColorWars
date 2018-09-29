@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/">
+        <file alias="ICO_ERR">assets/Error.png</file>
+        <file alias="ICO_INFO">assets/Info.png</file>
+        <file alias="ICO_WARN">assets/Warn.png</file>
+        <file alias="ICO_APP">icon.png</file>
+        <file alias="ICO_DEBUG">assets/Debug.png</file>
+    </qresource>
+</RCC>

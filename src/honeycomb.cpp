@@ -58,6 +58,8 @@ bool CCell::Draw(QPainter *pPainter)
             float nY = mPosition.y() - c_nCircumRadius;
             float nTheta = static_cast<float>(MAX_DEGREE - c_nDegreePerAngle); // We start with a negative degree.
 
+            QRectF qDebugRect;
+
             // Begin calculating the points (counter-clockwise, starting at top).
             //!\NOTE: Our hexagons have the long-leg vertical, meaning they're pointed at the top. (height > width)
             for (size_t iIdx = 0; NUM_HEX_VERTS > iIdx; ++iIdx)
@@ -80,10 +82,16 @@ bool CCell::Draw(QPainter *pPainter)
                 {
                     nTheta -= MAX_DEGREE;
                 }
+
+                // Setup the debugging rectangle.
+                if (iIdx == 0) { qDebugRect.setTop(nY); }
+                else if (iIdx == 1) { qDebugRect.setRight(nX); }
+                else if (iIdx == 3) { qDebugRect.setBottom(nY); }
+                else if (iIdx == 4) { qDebugRect.setLeft(nX); }
             }
 
             // Done, now we want to set the painter to draw the hexagon correctly.
-            pPainter->setPen(QPen(QBrush(Qt::black), 2.0f));
+            pPainter->setPen(QPen(QBrush(Qt::black), 2.0));
 
             // Set the fill color.
             switch (meClr)
@@ -106,6 +114,16 @@ bool CCell::Draw(QPainter *pPainter)
 
             // Draw the points!
             pPainter->drawPolygon(pPts, NUM_HEX_VERTS);
+
+            // Do any debug drawing needed.
+            if (g_cfgVars.mbIsDebug)
+            {
+                pPainter->setBrush(QBrush(Qt::transparent));
+                pPainter->setPen(QPen(Qt::black, 2.0));
+
+                // Draw the position in the center of the cell.
+                pPainter->drawText(qDebugRect, Qt::AlignCenter, QString("X: %1\nY: %2").arg(mPosition.mX).arg(mPosition.mY));
+            }
 
             // Set success!
             bSuccess = true;
@@ -424,6 +442,48 @@ size_t CHoneyComb::GetCellIdxColor(ECellColors eIsColor)
 ECellColors CHoneyComb::GetCombColor()
 {
     return meCombColor;
+}
+
+CCell* CHoneyComb::GetCellAtPoint(SPoint &aPt)
+{
+    CCell *pRtnCell = nullptr;
+
+    if (IsInitialized())
+    {
+        for (std::vector<CCell*>::iterator pIter = mpCells.begin(); pIter != mpCells.end(); ++pIter)
+        {
+            CCell* pTmpCell = (*pIter);
+            if (pTmpCell->IsValid() && pTmpCell->PointInHex(aPt))
+            {
+                pRtnCell = pTmpCell;
+            }
+        }
+    }
+
+    return pRtnCell;
+}
+
+u32 CHoneyComb::GetCellIdxAtPoint(SPoint &aPt)
+{
+    u32 uRtnIdx = 0;
+
+    if (IsInitialized())
+    {
+        for (std::vector<CCell*>::iterator pIter = mpCells.begin(); pIter != mpCells.end(); ++pIter)
+        {
+            CCell* pTmpCell = (*pIter);
+            if (pTmpCell->IsValid() && pTmpCell->PointInHex(aPt))
+            {
+                break;
+            }
+            else
+            {
+                ++uRtnIdx;
+            }
+        }
+    }
+
+    return uRtnIdx;
 }
 
 void CHoneyComb::SetCellSize(const float anSize)

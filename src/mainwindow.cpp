@@ -3,9 +3,6 @@
 #include <QHBoxLayout>
 #include "include/mainwindow.h"
 
-// FOR DEBUGGING ONLY!
-QPointF l_CollisionPoints[NUM_HEX_VERTS];
-
 CMainWindow::CMainWindow(QWidget *parent) : QMainWindow(parent), mpGame{nullptr}, mpTicker{nullptr}, mpCanvas{nullptr}
 {
     // Intentionally left blank.
@@ -28,11 +25,11 @@ void CMainWindow::Setup()
     char *pWndTitle = new char[4096];
     memset(pWndTitle, 0, 4096);
 
-#if defined(Q_OS_UNIX)
-    snprintf(pWndTitle, 4095, "Color Wars %s [Version: %d.%d.%d] (Build: %d)", VER_STAGE, VER_MAJOR, VER_MINOR, VER_PATCH, BUILD);
-#else
+//#if defined(Q_OS_UNIX)
+//    snprintf(pWndTitle, 4095, "Color Wars %s [Version: %d.%d.%d] (Build: %d)", VER_STAGE, VER_MAJOR, VER_MINOR, VER_PATCH, BUILD);
+//#else
     snprintf(pWndTitle, 4095, "Color Wars %s [Version: %d.%d.%d] (Build: %d)", VER_STAGE, VER_MAJOR, VER_MINOR, VER_PATCH, 0);
-#endif // #if defined(BUILD)
+//#endif // #if defined(BUILD)
 
     setWindowTitle(QString::fromLatin1(pWndTitle));
     resize(1280, 1024);
@@ -58,24 +55,34 @@ void CMainWindow::paintEvent(QPaintEvent *apEvent)
     {
         if (nullptr != mpGame && nullptr != mpGame->GetCanvas())
         {
-            QImage qImg = mpGame->GetCanvas()->scaled(mpGameCanvas->size(), Qt::KeepAspectRatio);
+            QImage qImg = mpGame->GetCanvas()->scaled(mpGameCanvas->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
             mpGameCanvas->setPixmap(QPixmap::fromImage(qImg));
         }
 
-        for (int iIdx = mpChatLog->count(); iIdx < g_LogList.size(); ++iIdx) { mpChatLog->addItem(g_LogList[iIdx]); }
-        mpChatLog->scrollToBottom();
-
-#if defined(__DBG_BUILD)
-        QPainter *pPainter = new QPainter();
-        pPainter->begin(this);
-        // Draw the testing collision points.
-        pPainter->setPen(QPen(QBrush(Qt::red), 2.0f, Qt::DashDotDotLine));
-        pPainter->setBrush(Qt::NoBrush);
-        pPainter->drawPolygon(l_CollisionPoints, NUM_HEX_VERTS);
-        pPainter->end();
-
-        if (nullptr != pPainter) { delete pPainter; }
-#endif // #if defined(__DBG_BUILD)
+        for (int iIdx = mpChatLog->count(); iIdx < g_LogList.size(); ++iIdx)
+        {
+            if (g_LogList[iIdx].contains("[Debug]: "))
+            {
+                QListWidgetItem *pItem = new QListWidgetItem(QIcon(tr(":/ICO_DEBUG")), g_LogList[iIdx].remove("[Debug]: "));
+                mpChatLog->addItem(pItem);
+            }
+            else if (g_LogList[iIdx].contains("[Info]: "))
+            {
+                QListWidgetItem *pItem = new QListWidgetItem(QIcon(tr(":/ICO_INFO")), g_LogList[iIdx].remove("[Info]: "));
+                mpChatLog->addItem(pItem);
+            }
+            else if (g_LogList[iIdx].contains("[Warning]: "))
+            {
+                QListWidgetItem *pItem = new QListWidgetItem(QIcon(tr(":/ICO_WARN")), g_LogList[iIdx].remove("[Warning]: "));
+                mpChatLog->addItem(pItem);
+            }
+            else if (g_LogList[iIdx].contains("[Error]: "))
+            {
+                QListWidgetItem *pItem = new QListWidgetItem(QIcon(tr(":/ICO_ERR")), g_LogList[iIdx].remove("[Error]: "));
+                mpChatLog->addItem(pItem);
+            }
+            mpChatLog->scrollToBottom();
+        }
     }
     else
     {
@@ -98,7 +105,7 @@ void CMainWindow::contextMenuEvent(QContextMenuEvent *apEvent)
 
 void CMainWindow::playGame(bool)
 {
-    mpTicker->start(100);
+    mpTicker->start(500);
     mlActions.at(0)->setText(tr("Start Game"));
     mlActions.at(0)->setEnabled(false);
     mlActions.at(1)->setEnabled(true);
@@ -140,7 +147,7 @@ void CMainWindow::SetupUI()
     mpChatLog->setMaximumWidth(rect().width() / 2.5);
     mpChatLog->setMinimumWidth(rect().width() / 8);
     mpChatLog->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    mpChatLog->setToolTip(tr("Discord Chat Log"));
+    mpChatLog->setToolTip(tr("Console Log"));
     mpChatLog->setAutoScroll(true);
 
     mpGameCanvas = new QLabel();
@@ -154,7 +161,7 @@ void CMainWindow::SetupUI()
         mpGameCanvas->setPixmap(QPixmap());
     }
 
-    mpGameCanvas->setScaledContents(true);
+//    mpGameCanvas->setScaledContents(true);
     mpGameCanvas->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     mpGameCanvas->setMaximumSize(1024, 1024);
 
@@ -180,4 +187,7 @@ void CMainWindow::SetupUI()
     mlActions[2]->setText(tr("Stop Game"));
     mlActions[2]->setEnabled(false);
     connect(mlActions[2], &QAction::triggered, this, &CMainWindow::stopGame);
+
+    // Set the window icon.
+    setWindowIcon(QIcon(tr(":/ICO_APP")));
 }

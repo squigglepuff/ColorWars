@@ -1,11 +1,18 @@
 #include "include/mainwindow.h"
 #include <QApplication>
+#include <QDateTime>
+#include <QSysInfo>
 
 std::map<ECellColors, QString> g_ColorNameMap;
+CfgVars g_cfgVars;
 QList<QString> g_LogList;
 
 CGame *mpGame;
 QTimer *mpTicker;
+
+// Logging.
+static std::filebuf l_fileBuff;
+static std::ostream l_logStream(&l_fileBuff);
 
 void SetupColorNames()
 {
@@ -24,6 +31,7 @@ void SetupColorNames()
     g_ColorNameMap[Cell_Gray] = "Gray";
 }
 
+// -------------------------------- BEGIN LOGGING -------------------------------- //
 void HandleQLoggingGUI(QtMsgType type, const QMessageLogContext &context, const QString &msg)
 {
     QString lMsg = "";
@@ -31,38 +39,41 @@ void HandleQLoggingGUI(QtMsgType type, const QMessageLogContext &context, const 
     {
         case QtDebugMsg:
         {
-            lMsg = "[Debug]: ";
-            lMsg.append(msg.toLocal8Bit());
-            lMsg.append(" <");
-            lMsg.append(context.file);
-            lMsg.append(":");
-            lMsg.append(context.line);
-            lMsg.append(" @ ");
-            lMsg.append(context.function);
-            lMsg.append(">");
+            if (g_cfgVars.mbIsDebug)
+            {
+                lMsg.append("[Debug]: ");
+                lMsg.append(msg.toLocal8Bit());
+                lMsg.append(" <");
+                lMsg.append(context.file);
+                lMsg.append(":");
+                lMsg.append(QString("%1").arg(context.line));
+                lMsg.append(" @ ");
+                lMsg.append(context.function);
+                lMsg.append(">");
+            }
             break;
         }
         case QtInfoMsg:
         {
-            lMsg = "[Info]: ";
+            lMsg.append("[Info]: ");
             lMsg.append(msg.toLocal8Bit());
             break;
         }
         case QtWarningMsg:
         {
-            lMsg = "[Warning]: ";
+            lMsg.append("[Warning]: ");
             lMsg.append(msg.toLocal8Bit());
             break;
         }
         case QtCriticalMsg:
         {
-            lMsg = "[Error]: ";
+            lMsg.append("[Error]: ");
             lMsg.append(msg.toLocal8Bit());
             break;
         }
         case QtFatalMsg:
         {
-            lMsg = "[FATAL]: ";
+            lMsg.append("[FATAL]: ");
             lMsg.append(msg.toLocal8Bit());
             lMsg.append(" <");
             lMsg.append(context.file);
@@ -75,21 +86,88 @@ void HandleQLoggingGUI(QtMsgType type, const QMessageLogContext &context, const 
         }
     }
 
-    fprintf(stdout, "%s\n", lMsg.toStdString().c_str());
-    g_LogList.append(lMsg);
+    if (!lMsg.isEmpty())
+    {
+        std::cout<< lMsg.toStdString()<< std::endl;
+        l_logStream<< QDateTime::currentDateTimeUtc().toString("yyyy-dd-MM hh:mm:ss.z t").toStdString()<< " "<< lMsg.toStdString()<< std::endl;
+
+        g_LogList.append(lMsg);
+    }
 }
 
 void HandleQLogging(QtMsgType type, const QMessageLogContext &context, const QString &msg)
 {
+    char* lMsg = new char[4096];
+    memset(lMsg, 0, 4096);
     switch(type)
     {
-        case QtDebugMsg: printf("[Debug]: %s <%s:%d @ %s>\n", msg.toStdString().c_str(), context.file, context.line, context.function); break;
-        case QtInfoMsg: printf("[Info]: %s\n", msg.toStdString().c_str()); break;
-        case QtWarningMsg: printf("[Warning]: %s\n", msg.toStdString().c_str()); break;
-        case QtCriticalMsg: printf("[Error]: %s\n", msg.toStdString().c_str()); break;
-        case QtFatalMsg: printf("[Debug]: %s <%s:%d @ %s>\n", msg.toStdString().c_str(), context.file, context.line, context.function); break;
+        case QtDebugMsg: snprintf(lMsg, 4096, "[Debug]: %s <%s:%d @ %s>", msg.toStdString().c_str(), context.file, context.line, context.function); break;
+        case QtInfoMsg: snprintf(lMsg, 4096, "[Info]: %s", msg.toStdString().c_str()); break;
+        case QtWarningMsg: snprintf(lMsg, 4096, "[Warning]: %s", msg.toStdString().c_str()); break;
+        case QtCriticalMsg: snprintf(lMsg, 4096, "[Error]: %s", msg.toStdString().c_str()); break;
+        case QtFatalMsg: snprintf(lMsg, 4096, "[Debug]: %s <%s:%d @ %s>", msg.toStdString().c_str(), context.file, context.line, context.function); break;
+    }
+
+    if (0 < strlen(lMsg))
+    {
+        std::cout<< QDateTime::currentDateTimeUtc().toString("yyyy-dd-MM hh:mm:ss.z t").toStdString()<< " "<< lMsg<< std::endl;
+        l_logStream<< QDateTime::currentDateTimeUtc().toString("yyyy-dd-MM hh:mm:ss.z t").toStdString()<< " "<< lMsg<< std::endl;
     }
 }
+
+void OpenLogAndPrintHeader()
+{
+    // Open the log.
+    std::string sLogPath = g_cfgVars.msRootDir;
+
+    sLogPath += "/logs/";
+    QDir lDir(sLogPath.c_str());
+    if (!lDir.exists())
+    {
+        lDir.mkdir(sLogPath.c_str());
+    }
+
+    if (g_cfgVars.msLogName.empty())
+    {
+        g_cfgVars.msLogName = g_cfgVars.msProgName;
+    }
+
+    if (g_cfgVars.msLogName.find(".log") == std::string::npos)
+    {
+        if (g_cfgVars.mbIsDebug) { g_cfgVars.msLogName += "-runtime_DEBUG.log"; }
+        else { g_cfgVars.msLogName += "-runtime.log"; }
+    }
+
+    l_fileBuff.open(sLogPath + g_cfgVars.msLogName, std::ios::out);
+
+    QString lHeader = "+================\n"
+                      ">    BEGIN ColorWars %1 LOG\n"
+                      ">    Version: %2.%3.%4\n"
+                      ">    Launch Date: %5\n"
+                      ">................\n"
+                      ">    System Information:\n"
+                      ">        Kernal: %6\n"
+                      ">        Architecture: %7\n"
+                      ">        OS: %8\n"
+                      ">        Hostname: %9\n"
+                      ">................\n"
+                      ">    DEBUG: %10\n"
+                      "+================";
+
+    lHeader = lHeader.arg(VER_STAGE).arg(VER_MAJOR).arg(VER_MINOR).arg(VER_PATCH);
+    lHeader = lHeader.arg(QDateTime::currentDateTimeUtc().toString("yyyy-dd-MM hh:mm:ss.z t"));
+    lHeader = lHeader.arg(QSysInfo::kernelVersion());
+    lHeader = lHeader.arg(QSysInfo::currentCpuArchitecture());
+    lHeader = lHeader.arg(QSysInfo::prettyProductName());
+    lHeader = lHeader.arg(QSysInfo::machineHostName());
+
+    if (g_cfgVars.mbIsDebug) { lHeader = lHeader.arg("TRUE"); }
+    else { lHeader = lHeader.arg("FALSE"); }
+
+    std::cout<< lHeader.toStdString()<< std::endl;
+    l_logStream<< lHeader.toStdString()<< std::endl;
+}
+// -------------------------------- END LOGGING -------------------------------- //
 
 void TickGame(CMainWindow* pWnd = nullptr)
 {
@@ -115,24 +193,59 @@ void TickGame(CMainWindow* pWnd = nullptr)
             eVictim = (mpGame->NationExists(Cell_White)) ? Cell_White : vRandClr[uRandIdx];
         }while (!mpGame->NationExists(eVictim));
 
+//        eAggressor = Cell_Green;
+
         mpGame->Play(eAggressor, eVictim);
 
         if (nullptr != pWnd) { pWnd->repaint(); }
     }
 }
 
+char* UpdateProcName(char* pCurrName)
+{
+    const size_t uMaxSz = 4096;
+    const std::string sOurName = "ColorWars";
+
+    std::string sPlatform = QSysInfo::productType().toStdString();
+    std::string sVersion = QSysInfo::productVersion().toStdString();
+    std::string sArch = QSysInfo::buildCpuArchitecture().toStdString();
+
+    char* pNewName = new char[uMaxSz];
+    memset(pNewName, 0, uMaxSz);
+
+    // Example: ColorWars Ubuntu 18.04 [x86_64] (/usr/bin/ColorWars)
+    snprintf(pNewName, uMaxSz, "ColorWars %s %s [%s] (%s)", sPlatform.c_str(), sVersion.c_str(), sArch.c_str(), pCurrName);
+
+    return pNewName;
+}
+
 int main(int argc, char *argv[])
 {
     bool bUseGui = true;
-    bool bShowDebug = false;
     bool bShouldRun = true;
+
+    // Setup the directory.
+    g_cfgVars.msRootDir = argv[0];
+    size_t iLastIdx = g_cfgVars.msRootDir.find_last_of('/');
+    if (std::string::npos == iLastIdx)
+    {
+        iLastIdx = g_cfgVars.msRootDir.find_last_of('\\');
+        if (std::string::npos == iLastIdx)
+        {
+            fprintf(stderr, "ERR: Unable to locate program root! Defaulting to \"./\"!\n");
+        }
+    }
+    g_cfgVars.msRootDir.erase(g_cfgVars.msRootDir.begin() + iLastIdx, g_cfgVars.msRootDir.end());
+
+    // Attempt to update the process name.
+    argv[0] = UpdateProcName(argv[0]);
 
     // Iterate over the arguments and see if they're anything we're interested in.
     for (int iIdx = 1; iIdx < argc; ++iIdx)
     {
         if (!strcmp("-d", argv[iIdx]) || !strcmp("--debug", argv[iIdx]))
         {
-            bShowDebug = true;
+            g_cfgVars.mbIsDebug = true;
         }
         else if (!strcmp("-h", argv[iIdx]) || !strcmp("--help", argv[iIdx]))
         {
@@ -156,6 +269,8 @@ int main(int argc, char *argv[])
     int iRtnCode = 0;
     if (bShouldRun)
     {
+        OpenLogAndPrintHeader();
+
         SetupColorNames();
 
         QApplication a(argc, argv);
@@ -179,7 +294,19 @@ int main(int argc, char *argv[])
             qInstallMessageHandler(HandleQLogging);
         }
 
+        if (g_cfgVars.mbIsDebug) { qDebug("Debugging enabled!"); }
+
         iRtnCode = a.exec();
+
+        // -------------------------------- BEGIN LOGGING -------------------------------- //
+        std::string sCloseMsg = "+================\n"
+                                "> CLOSED ColorWars LOG\n"
+                                "+================";
+        std::cout<< sCloseMsg<< std::endl;
+        l_logStream<< sCloseMsg<< std::endl;
+
+        l_fileBuff.close();
+        // -------------------------------- END LOGGING -------------------------------- //
     }
 
     return iRtnCode;

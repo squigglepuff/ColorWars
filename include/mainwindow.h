@@ -30,7 +30,7 @@ protected:
     void paintEvent(QPaintEvent *apEvent);
     void contextMenuEvent(QContextMenuEvent *apEvent);
 
-private slots:
+public slots:
     void playGame(bool);
     void pauseGame(bool);
     void stopGame(bool);

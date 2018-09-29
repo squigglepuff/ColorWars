@@ -48,12 +48,18 @@ u32 CDice::GetLastRoll()
 // ================================ Begin CGame Implementation ================================ //
 CGame::CGame() : mpDice{nullptr}, mpBoard{nullptr}, mpCanvas{nullptr}, muDiceMax{0xffffffff}, msTmpFileName{"colorwars_development.png"}
 {
-    // Intentionally left blank.
+    if (msTmpFileName.find("_DEBUG") == std::string::npos && g_cfgVars.mbIsDebug)
+    {
+        msTmpFileName.insert(msTmpFileName.find_last_of("."), "_DEBUG");
+    }
 }
 
 CGame::CGame(const CGame& aCls) : mpDice{aCls.mpDice}, mpBoard{aCls.mpBoard}, mpCanvas{aCls.mpCanvas}, muDiceMax{aCls.muDiceMax}
 {
-    // Intentionally left blank.
+    if (msTmpFileName.find("_DEBUG") == std::string::npos && g_cfgVars.mbIsDebug)
+    {
+        msTmpFileName.insert(msTmpFileName.find_last_of("."), "_DEBUG");
+    }
 }
 
 CGame::~CGame()
@@ -217,94 +223,41 @@ std::pair<bool, QString> CGame::MoveColor(ECellColors eAggressor, ECellColors eV
             }
         }
 
+        u32 uCellTaken = 0;
+        QString lRtnStr = "No cells taken!";
         if (nullptr != pAggrNation && nullptr != pVictimNation)
         {
-            /* Attempt to make the move.
-             *
-             * In order to do this, we first acquire all the aggressor combs and iterate through them. First testing to see if one of them is shared with the victim.
-             * IF TRUE: We then attempt to claim all the victim's cells (up to uMvAmnt).
-             * IF FALSE: We then check the neighbors and see if one of them has the victim.
-             *      IF TRUE: We then attack the new comb, and go from there.
-             *      IF FALSE: We move on to the next comb
-             *
-             * If we don't get uMvAmnt of cells, we report back saying "true, however only X cells taken, no neighbors remain."
-             */
-            u32 uCellsTaken = 0;
-            std::vector<CHoneyComb*> vAggrCombs = pAggrNation->GetAllCombs();
-            for (std::vector<CHoneyComb*>::iterator pAggrIter = vAggrCombs.begin(); pAggrIter != vAggrCombs.end(); ++pAggrIter)
+            uCellTaken = DoFloodFill(pAggrNation, pVictimNation, uMvAmnt);
+
+            if (0 < uCellTaken)
             {
-                // Check to see if this comb contains the victim nation.
-                CHoneyComb* pCurrComb = (*pAggrIter);
-                if (nullptr != pCurrComb)
+                lRtnStr = QString("%1 Took %2 cells from %3!").arg(pAggrNation->GetNationName()).arg(uCellTaken).arg(pVictimNation->GetNationName());
+                if (0 >= pVictimNation->GetNationSize())
                 {
-                    if (pCurrComb->CombContainsColor(eVictim))
-                    {
-                        // It does! Take their cells!
-                        do
-                        {
-                            u32 uCellIdx = pCurrComb->GetCellIdxColor(eVictim);
-                            pAggrNation->Add(*pAggrIter, uCellIdx);
-                            pVictimNation->Remove(*pAggrIter, uCellIdx);
-                            ++uCellsTaken;
-
-                            if (pCurrComb->CombIsAllColor(eAggressor)) { pCurrComb->SetAllCellColor(eAggressor); pVictimNation->Remove(*pAggrIter, uCellIdx); }
-                            else { pCurrComb->SetCombColor(Comb_Mixed); }
-
-                            if (uCellsTaken >= uMvAmnt) { break; }
-                        } while ( pCurrComb->CombContainsColor(eVictim) && uCellsTaken < uMvAmnt);
-
-                        if (uCellsTaken >= uMvAmnt) { break; }
-                    }
-
-                    // Grab the neighbors and iterate through them.
-                    std::vector<CHoneyComb*> pAggrNeighbors = mpBoard->GetNeighbors(pCurrComb);
-                    for (std::vector<CHoneyComb*>::iterator pNeighborIter = pAggrNeighbors.begin(); pNeighborIter != pAggrNeighbors.end(); ++pNeighborIter)
-                    {
-                        CHoneyComb* pNeighbor = (*pNeighborIter);
-                        if (nullptr != pNeighbor)
-                        {
-                            if (pNeighbor->CombContainsColor(eVictim))
-                            {
-                                // It does! Take their cells!
-                                do
-                                {
-                                    u32 uCellIdx = pNeighbor->GetCellIdxColor(eVictim);
-                                    pAggrNation->Add(pNeighbor, uCellIdx);
-                                    pVictimNation->Remove(pNeighbor, uCellIdx);
-                                    ++uCellsTaken;
-
-                                    if (pNeighbor->CombIsAllColor(eAggressor)) { pNeighbor->SetAllCellColor(eAggressor); pVictimNation->Remove(pNeighbor, uCellIdx); }
-                                    else { pNeighbor->SetCombColor(Comb_Mixed); }
-
-                                    if (uCellsTaken >= uMvAmnt) { break; }
-                                } while ( pNeighbor->CombContainsColor(eVictim) && uCellsTaken < uMvAmnt);
-                            }
-                        }
-
-                        if (uCellsTaken >= uMvAmnt) { break; }
-                    }
+                    mvNations.erase(std::find(mvNations.begin(), mvNations.end(), pVictimNation));
+                    lRtnStr = QString("%1 has conquered %2!").arg(pAggrNation->GetNationName()).arg(pVictimNation->GetNationName());
                 }
-
-                if (uCellsTaken >= uMvAmnt) { break; }
-            }
-
-            // Have we conquered?
-            if (0 >= pVictimNation->GetNationSize())
-            {
-                mvNations.erase(std::find(mvNations.begin(), mvNations.end(), pVictimNation));
-                QString sAggrName = pAggrNation->GetNationName();
-                QString sVictimName = pVictimNation->GetNationName();
-                QString sOvertakeMsg = QString("%1 has conquered %2!").arg(sAggrName, sVictimName);
-                rtnData = std::pair<bool, QString>(true, sOvertakeMsg);
             }
             else
             {
-                rtnData = std::pair<bool, QString>(true, QString("%1 Took %2 cells!").arg(pAggrNation->GetNationName()).arg(uCellsTaken));
+                lRtnStr = QString("%1 doesn't border %2!").arg(pAggrNation->GetNationName()).arg(pVictimNation->GetNationName());
             }
         }
-        else if (nullptr != pAggrNation && nullptr == pVictimNation) { rtnData = std::pair<bool, QString>(false, "Their nation doesn't exist!"); }
-        else if (nullptr == pAggrNation && nullptr != pVictimNation) { rtnData = std::pair<bool, QString>(false, "Your nation doesn't exist!"); }
-        else { rtnData = std::pair<bool, QString>(false, "Neither nation exists!"); }
+        else if (nullptr == pAggrNation && nullptr != pVictimNation)
+        {
+            lRtnStr = "Your nation doesn't exist!";
+        }
+        else if (nullptr != pAggrNation && nullptr == pVictimNation)
+        {
+            lRtnStr = "Their nation doesn't exist!";
+        }
+        else
+        {
+            lRtnStr = "Neither nation exists!";
+        }
+
+        rtnData = std::pair<bool, QString>(true, lRtnStr);
+//        rtnData = DoInfectionFill(pAggrNation, pVictimNation, uMvAmnt);
     }
 
     return rtnData;
@@ -340,7 +293,7 @@ bool CGame::NationExists(ECellColors eColor)
     bool bFoundNation = false;
     for (std::vector<CNation*>::iterator pNatIter = mvNations.begin(); pNatIter != mvNations.end(); ++pNatIter)
     {
-        if ((*pNatIter)->GetNationColor() == eColor)
+        if ((*pNatIter)->GetNationColor() == eColor && 0 < (*pNatIter)->GetNationSize())
         {
             bFoundNation = true;
             break;
@@ -368,5 +321,80 @@ QImage* CGame::GetCanvas()
 void CGame::SetDiceMax(u32 iMaxium)
 {
     muDiceMax = iMaxium;
+}
+
+u32 CGame::DoFloodFill(CNation* aAggrNation, CNation* aVictimNation, u32 uMvAmnt)
+{
+    u32 uCellsTaken = 0;
+    u32 uNewCells = 0;
+    if (nullptr != aAggrNation && nullptr != aVictimNation)
+    {
+        // Get the nation colors.
+        ECellColors eAggressor = aAggrNation->GetNationColor();
+        ECellColors eVictim = aVictimNation->GetNationColor();
+
+        do
+        {
+            uNewCells = 0;
+
+            // Iterate over the aggressor's cells.
+            std::vector<u64> vAggrCells = aAggrNation->GetCellIDs();
+            for (std::vector<u64>::iterator iAggrCellIter = vAggrCells.begin(); iAggrCellIter != vAggrCells.end(); ++iAggrCellIter)
+            {
+                u64 uCellID = (*iAggrCellIter);
+
+                // Grab the neighbors of the cell.
+                std::vector<CCell*> vNeighbors = mpBoard->GetCellNeighbors(uCellID);
+
+                QString lMsg("Got %1 neighbors");
+                lMsg = lMsg.arg(vNeighbors.size());
+                qDebug(lMsg.toStdString().c_str());
+
+                // Iterate over the owned cells and check the neighbors.
+                for (std::vector<CCell*>::iterator iNeighIter = vNeighbors.begin(); iNeighIter != vNeighbors.end(); ++iNeighIter)
+                {
+                    CCell* pCell = (*iNeighIter);
+                    if (nullptr != pCell && pCell->GetColor() == eVictim)
+                    {
+                        // Yoink!
+                        u64 uNewCellID = static_cast<u32>(pCell->GetPosition().mX);
+                        uNewCellID = uNewCellID << 32;
+                        uNewCellID += static_cast<u32>(pCell->GetPosition().mY);
+
+                        QString qMsg("Taking cell %1 from %2 nation...");
+                        qMsg = qMsg.arg(uNewCellID).arg(g_ColorNameMap[eVictim]);
+                        qDebug(qMsg.toStdString().c_str());
+
+                        pCell->SetColor(eAggressor);
+
+                        aAggrNation->Add(uNewCellID);
+                        aVictimNation->Remove(uNewCellID);
+                        ++uCellsTaken;
+                        uNewCells = 1;
+
+                        if (uCellsTaken >= uMvAmnt) { break; }
+                    }
+
+                    if (uCellsTaken >= uMvAmnt) { break; }
+                }
+
+                if (uCellsTaken >= uMvAmnt) { break; }
+            }
+        } while(uCellsTaken < uMvAmnt && 0 < uNewCells);
+    }
+
+    return uCellsTaken;
+}
+
+u32 CGame::DoInfectionFill(CNation* aAggrNation, CNation* aVictimNation, u32 uMvAmnt)
+{
+    u32 uCellsTaken = 0;
+
+    if (nullptr != aAggrNation && nullptr != aVictimNation)
+    {
+        // code
+    }
+
+    return uCellsTaken;
 }
 // ================================ End CGame Implementation ================================ //

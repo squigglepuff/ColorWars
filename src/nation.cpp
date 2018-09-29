@@ -37,18 +37,10 @@ CNation* CNation::operator >>(CNation& aParent)
     return Merge(&aParent);
 }
 
-void CNation::Create(ECellColors eClr, CHoneyComb* pStartComb, QString sName)
+void CNation::Create(ECellColors eClr, QString sName)
 {
-    if (nullptr != pStartComb)
-    {
-        meColor = eClr;
-        msName = sName;
-
-        mvOwnedCells[pStartComb] = {0,1,2,3,4,5,6}; // We own all these cells!
-
-        // Set the comb color!
-        pStartComb->SetAllCellColor(eClr);
-    }
+    meColor = eClr;
+    msName = sName;
 }
 
 void CNation::Destroy()
@@ -57,108 +49,49 @@ void CNation::Destroy()
     mvOwnedCells.clear();
 }
 
-bool CNation::Add(CHoneyComb *pComb, u32 iCellIdx)
+bool CNation::Add(u64 uCellID)
 {
     bool bSuccess = false;
-    if (nullptr != pComb)
+
+    if (mvOwnedCells.end() == std::find(mvOwnedCells.begin(), mvOwnedCells.end(), uCellID))
     {
-        if (mvOwnedCells.end() == mvOwnedCells.find(pComb))
-        {
-            mvOwnedCells.insert(std::pair<CHoneyComb*, std::vector<u32>>(pComb, {iCellIdx}));
-        }
-        else
-        {
-            mvOwnedCells.at(pComb).push_back(iCellIdx);
-        }
-
-        // Set the color of the cell in question.
-        pComb->GetCellAt(iCellIdx)->SetColor(meColor);
-
-        bSuccess = true;
+        mvOwnedCells.push_back(uCellID);
+    }
+    else
+    {
+        std::string sMsg = QString("ERR: We already own the cell with ID %1!").arg(uCellID).toStdString();
+        qCritical(sMsg.c_str());
     }
 
     return bSuccess;
 }
 
-bool CNation::Remove(CHoneyComb *pComb, u32 iCellIdx)
+bool CNation::Remove(u64 uCellID)
 {
     bool bSuccess = false;
-    if (nullptr != pComb && 0 < GetNationSize())
+
+    std::vector<u64>::iterator iCellIter = std::find(mvOwnedCells.begin(), mvOwnedCells.end(), uCellID);
+    if (mvOwnedCells.end() != iCellIter)
     {
-        // Check to see if we even own this comb via it's color, then via our tracking.
-        if (pComb->CombContainsColor(meColor))
-        {
-            std::map<CHoneyComb*, std::vector<u32>>::iterator pMapIter;
-            for (pMapIter = mvOwnedCells.begin(); pMapIter != mvOwnedCells.end(); ++pMapIter)
-            {
-                if (pMapIter->first == pComb)
-                {
-                    for (std::vector<u32>::iterator pIdxIter = pMapIter->second.begin(); pIdxIter != pMapIter->second.end(); ++pIdxIter)
-                    {
-                        if (*pIdxIter == iCellIdx)
-                        {
-                            // Remove this cell from our tracking.
-                            pMapIter->second.erase(pIdxIter);
-                            if (0 >= pMapIter->second.size())
-                            {
-                                // We don't, we need to also remove the comb!
-                                if (0 < mvOwnedCells.size()) { mvOwnedCells.erase(pComb); }
-                                else { mvOwnedCells.clear(); }
-                            }
-
-                            bSuccess = true;
-                            break;
-                        }
-
-                        if (bSuccess) { break; }
-                    }
-                }
-
-                if (bSuccess) { break; }
-            }
-        }
-        else
-        {
-            // Remove this comb as it's not ours anymore!
-            if (1 < mvOwnedCells.size()) { mvOwnedCells.erase(pComb); }
-            else { mvOwnedCells.clear(); }
-            bSuccess = true;
-        }
+        mvOwnedCells.erase(iCellIter);
+    }
+    else
+    {
+        std::string sMsg = QString("ERR: We don't own the cell with ID %1!").arg(uCellID).toStdString();
+        qCritical(sMsg.c_str());
     }
 
     return bSuccess;
 }
 
+// !! NOT USED FOR NOW !!
 CNation* CNation::Merge(CNation* pMother)
 {
-    std::map<CHoneyComb*, std::vector<u32>>::iterator pMapIter;
-    for (pMapIter = mvOwnedCells.begin(); pMapIter != mvOwnedCells.end(); ++pMapIter)
-    {
-        if (pMapIter != mvOwnedCells.end())
-        {
-            for (std::vector<u32>::iterator pIdxIter = pMapIter->second.begin(); pIdxIter != pMapIter->second.end(); ++pIdxIter)
-            {
-                pMother->Add(pMapIter->first, *pIdxIter);
-            }
-        }
-    }
-
     // We don't own them anymore!
     mvOwnedCells.clear();
 
     // Done! Return the new mother!
     return pMother;
-}
-
-std::vector<CHoneyComb*> CNation::GetAllCombs()
-{
-    std::vector<CHoneyComb*> mRtn;
-    std::map<CHoneyComb*, std::vector<u32>>::iterator pMapIter;
-    for (pMapIter = mvOwnedCells.begin(); pMapIter != mvOwnedCells.end(); ++pMapIter)
-    {
-        mRtn.push_back(pMapIter->first);
-    }
-    return mRtn;
 }
 
 u32 CNation::GetNationSize()
@@ -174,6 +107,11 @@ ECellColors CNation::GetNationColor()
 QString CNation::GetNationName()
 {
     return msName;
+}
+
+std::vector<u64> CNation::GetCellIDs()
+{
+    return mvOwnedCells;
 }
 
 void CNation::SetNationColor(ECellColors eColor)

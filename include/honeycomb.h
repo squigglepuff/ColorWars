@@ -146,6 +146,9 @@ public:
     size_t GetCellIdxNotColor(ECellColors eIsNotColor);
     size_t GetCellIdxColor(ECellColors eIsColor);
 
+    CCell* GetCellAtPoint(SPoint &aPt);
+    u32 GetCellIdxAtPoint(SPoint &aPt);
+
     // Setters.
     void SetCellSize(const float anSize);
     void SetPosition(const SPoint& aqPosition);

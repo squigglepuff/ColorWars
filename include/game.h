@@ -74,6 +74,9 @@ public:
     void SetDiceMax(u32 iMaxium = 0xffffffff);
 
 private:
+    u32 DoFloodFill(CNation* aAggrNation, CNation* aVictimNation, u32 uMvAmnt);
+    u32 DoInfectionFill(CNation* aAggrNation, CNation* aVictimNation, u32 uMvAmnt);
+
     CDice *mpDice; //!< Pointer to the dice used to make decisions.
     CBoard *mpBoard; //!< Pointer to the active game board.
     QImage *mpCanvas; //!< The drawing canvas for the game.

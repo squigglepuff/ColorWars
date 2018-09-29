@@ -3,11 +3,21 @@
 
 // Qt Headers.
 #include <QString>
+#include <QDir>
 
 // C++ Standard headers.
 #include <math.h>
 #include <random>
+#include <map>
 #include <algorithm>
+#include <iostream>
+#include <fstream>
+#include <csignal>
+
+// System Sizes.
+#if !defined(WORD_SZ)
+#define WORD_SZ (64)
+#endif //#if !defined()
 
 // Custom data types.
 #if !defined(_CUSTOM_TYPES_SET)
@@ -99,8 +109,17 @@ struct SPoint
     SPoint(float aX, float aY) : mX{aX}, mY{aY} { /* Intentionally left blank. */ }
 };
 
+struct CfgVars
+{
+    bool mbIsDebug = false; //!< Are we in a debugging mode?
+    std::string msProgName = "ColorWars"; //!< The name of the program.
+    std::string msLogName = ""; //!< The log filename to write to.
+    std::string msRootDir = "./"; //!< The root directory for the game.
+};
+
 // External functions and variables.
 extern std::map<ECellColors, QString> g_ColorNameMap;
+extern CfgVars g_cfgVars;
 
 #endif // #if !defined(_CELL_COLORS)
 
