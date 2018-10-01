@@ -46,6 +46,8 @@ CBoard& CBoard::operator =(const CBoard& aCls)
     if (this != &aCls)
     {
         miSize = aCls.miSize;
+        mnCombSz = aCls.mnCombSz;
+
         mpBoardCombs = aCls.mpBoardCombs;
         mColorLastMap = aCls.mColorLastMap;
         mvNations = aCls.mvNations;
@@ -180,13 +182,44 @@ void CBoard::Create(u32 uCellSz, SPoint aqCenter)
  */
 void CBoard::Destroy()
 {
-    for (CombIterator pIter = mpBoardCombs.begin(); pIter != mpBoardCombs.end(); ++pIter)
+    // Clear out the cells.
+    for (std::map<u64, CCell*>::iterator iCellIter = mmCellMap.begin(); iCellIter != mmCellMap.end(); ++iCellIter)
     {
-        if (nullptr != *pIter)
+        std::pair<u64, CCell*> lCell = (*iCellIter);
+        if (nullptr != lCell.second)
         {
-            delete (*pIter);
+            delete (lCell.second);
         }
     }
+
+    // Clear the nations out.
+    for (std::vector<CNation*>::iterator iNatIter = mvNations.begin(); iNatIter != mvNations.end(); ++iNatIter)
+    {
+        CNation* pTmpNat = (*iNatIter);
+        if (nullptr != pTmpNat)
+        {
+            delete pTmpNat;
+        }
+    }
+
+    // Clear out the combs.
+    for (std::vector<CHoneyComb*>::iterator iCombIter = mpBoardCombs.begin(); iCombIter != mpBoardCombs.end(); ++iCombIter)
+    {
+        CHoneyComb* pTmpComb = (*iCombIter);
+        if (nullptr != pTmpComb)
+        {
+            delete pTmpComb;
+        }
+    }
+
+    // Clear the cell map.
+    mmCellMap.clear();
+
+    // Clear the nation list.
+    mvNations.clear();
+
+    // Clear the combs.
+    mpBoardCombs.clear();
 
     // Clear the color last map.
     mColorLastMap.clear();
@@ -529,291 +562,3 @@ void CBoard::AddCellToNation(ECellColors eClr, u64 uCellID)
         qInfo(QString("Added %1 nation to board!").arg(g_ColorNameMap[eClr]).toStdString().c_str());
     }
 }
-
-#if 0
-/*!
- * \brief CBoard::GetNeighbors
- *
- * This function will return all the neighbors for the given honeycomb.
- *
- * \note This function will heap-allocate data and it's up to the client to free this memory!
- *
- * \param pComb - Honeycomb to gather the neighbors of.
- * \return CHoneyComb pointer array of the neighbors, or nullptr if no neighbors.
- */
-std::vector<CHoneyComb *> CBoard::GetCombNeighbors(CHoneyComb *pComb)
-{
-    std::vector<CHoneyComb*> vNeighbors; // Maximum of 6 neighbors.
-    if (nullptr != pComb)
-    {
-        // Get this comb's position and size.
-        const u32 uCellSz = static_cast<u32>(pComb->GetCellSize() / 2.0f);
-        const float c_nCombSize = static_cast<float>(uCellSz * CELL_COMB_RATIO);
-        const float c_nCombCircumRadius = (c_nCombSize * TESS_COMBSZ_TO_TESSSZ);
-        const float c_nDegreePerAngle = 180.0f / 3.0f; // Should be 60.0f
-
-        SPoint qPos = pComb->GetPosition();
-
-        float nX = qPos.x();
-        float nY = qPos.y() - c_nCombCircumRadius;
-        float nTheta = static_cast<float>(MAX_DEGREE - c_nDegreePerAngle);
-
-        // Calculate the tessellation positions that'll be used for collision detection.
-        std::vector<SPoint> vCollPos;
-        for (size_t iIdx = 0; NUM_HEX_VERTS > iIdx; ++iIdx)
-        {
-            // Set the vertex position.
-            SPoint qPos(nX, nY);
-            vCollPos.push_back(qPos);
-
-            // Calculate the next position.
-            float nThetaRad = static_cast<float>((nTheta - TESS_ROTATION) * (M_PI / 180.0f));
-            float nXDelta = c_nCombCircumRadius * sin(nThetaRad);
-            float nYDelta = c_nCombCircumRadius * cos(nThetaRad);
-
-            // Subtract both.
-            nX += nXDelta;
-            nY += nYDelta;
-
-            nTheta += c_nDegreePerAngle;
-            if (nTheta >= MAX_DEGREE)
-            {
-                nTheta -= MAX_DEGREE;
-            }
-        }
-
-        // Now, iterate over the combs and collect all 6 neighbors (if possible).
-        for (CombIterator pIter = GetCombIterator(); pIter != mpBoardCombs.end(); ++pIter)
-        {
-            CHoneyComb *pTmpComb = (*pIter);
-            if (nullptr != pTmpComb)
-            {
-                for (std::vector<SPoint>::iterator pCollIter = vCollPos.begin(); pCollIter != vCollPos.end(); ++pCollIter)
-                {
-                    if (pTmpComb->PointInComb( (*pCollIter) ))
-                    {
-                        vNeighbors.push_back(pTmpComb);
-                        l_CollisionPoints[vNeighbors.size()-1].setX((*pCollIter).x());
-                        l_CollisionPoints[vNeighbors.size()-1].setY((*pCollIter).y());
-                    }
-                }
-            }
-        }
-    }
-
-    return vNeighbors;
-}
-
-/*!
- * \brief CBoard::GetNeighbors [overloaded]
- *
- * This function will return all the neighbors for the given honeycomb index.
- *
- * \param uCombIdx - The index of the comb to gather the neighbors of.
- * \return CHoneyComb pointer array of the neighbors, or nullptr if no neighbors.
- */
-std::vector<CHoneyComb *> CBoard::GetCombNeighbors(u32 uCombIdx)
-{
-    return GetCombNeighbors(GetComb(uCombIdx));
-}
-
-/*!
- * \brief CBoard::GetCombNeighborsWithColor
- *
- * This function is used to get a honeycomb's neighbors that contain the color we want.
- * \note It's important to note that the search color will be tested against the cells, not the combs themselves.
- *
- * \param pComb - The honeycomb to search from.
- * \param eSearchColor - The color to search for.
- * \return
- */
-std::vector<CHoneyComb*> CBoard::GetCombNeighborsWithColor(CHoneyComb *pComb, ECellColors eSearchColor)
-{
-    std::vector<CHoneyComb*> vNeighbors; // Maximum of 6 neighbors.
-    if (nullptr != pComb)
-    {
-        // Get this comb's position and size.
-        const u32 uCellSz = static_cast<u32>(pComb->GetCellSize() / 2.0f);
-        const float c_nCombSize = static_cast<float>(uCellSz * CELL_COMB_RATIO);
-        const float c_nCombCircumRadius = (c_nCombSize * TESS_COMBSZ_TO_TESSSZ);
-        const float c_nDegreePerAngle = 180.0f / 3.0f; // Should be 60.0f
-
-        SPoint qPos = pComb->GetPosition();
-
-        float nX = qPos.x();
-        float nY = qPos.y() - c_nCombCircumRadius;
-        float nTheta = static_cast<float>(MAX_DEGREE - c_nDegreePerAngle);
-
-        // Calculate the tessellation positions that'll be used for collision detection.
-        std::vector<SPoint> vCollPos;
-        for (size_t iIdx = 0; NUM_HEX_VERTS > iIdx; ++iIdx)
-        {
-            // Set the vertex position.
-            SPoint qPos(nX, nY);
-            vCollPos.push_back(qPos);
-
-            // Calculate the next position.
-            float nThetaRad = static_cast<float>((nTheta - TESS_ROTATION) * (M_PI / 180.0f));
-            float nXDelta = c_nCombCircumRadius * sin(nThetaRad);
-            float nYDelta = c_nCombCircumRadius * cos(nThetaRad);
-
-            // Subtract both.
-            nX += nXDelta;
-            nY += nYDelta;
-
-            nTheta += c_nDegreePerAngle;
-            if (nTheta >= MAX_DEGREE)
-            {
-                nTheta -= MAX_DEGREE;
-            }
-        }
-
-        // Now, iterate over the combs and collect all 6 neighbors (if possible).
-        for (CombIterator pIter = GetCombIterator(); pIter != mpBoardCombs.end(); ++pIter)
-        {
-            CHoneyComb *pTmpComb = (*pIter);
-            if (nullptr != pTmpComb)
-            {
-                for (std::vector<SPoint>::iterator pCollIter = vCollPos.begin(); pCollIter != vCollPos.end(); ++pCollIter)
-                {
-                    if (pTmpComb->PointInComb( (*pCollIter) ) && pTmpComb->CombContainsColor(eSearchColor))
-                    {
-                        vNeighbors.push_back(pTmpComb);
-                        l_CollisionPoints[vNeighbors.size()-1].setX((*pCollIter).x());
-                        l_CollisionPoints[vNeighbors.size()-1].setY((*pCollIter).y());
-                    }
-                }
-            }
-        }
-    }
-
-    return vNeighbors;
-}
-
-/*!
- * \brief CBoard::GetCellNeighborsWithColor
- *
- * This function is used to acquire all the neighbor cells that are the provided color in the provided comb, measuring from the provided cell index.
- *
- * \param pComb - The comb to search from.
- * \param uCellIdx - The cell to acquire the neighbors of.
- * \param eSearchColor - The color to search for.
- * \return Vector of pairs, each pair contains a CCell pointer and it's associated honeycomb (as a pointer).
- */
-std::vector<std::pair<CHoneyComb*, u32>> CBoard::GetCellNeighborsWithColor(CHoneyComb *pComb, u32 uCellIdx, ECellColors eSearchColor)
-{
-    std::vector<std::pair<CHoneyComb*, u32>> lRtn;
-    if (nullptr != pComb)
-    {
-        std::vector<std::pair<CHoneyComb*, u32>> lCellNeighbors = GetCellNeighbors(pComb, uCellIdx);
-        if (0 < lCellNeighbors.size())
-        {
-            std::vector<std::pair<CHoneyComb*, u32>>::iterator lNeighborIter = lCellNeighbors.begin();
-            for (lNeighborIter = lCellNeighbors.begin(); lNeighborIter != lCellNeighbors.end(); ++lNeighborIter)
-            {
-                std::pair<CHoneyComb*, u32> lNeigbor = (*lNeighborIter);
-                CCell* pNeighbor = lNeigbor.first->GetCellAt(lNeigbor.second);
-                if (nullptr != pNeighbor)
-                {
-                    if (pNeighbor->GetColor() == eSearchColor)
-                    {
-                        lRtn.push_back(lNeigbor);
-                    }
-                }
-            }
-        }
-    }
-
-    return lRtn;
-}
-
-/*!
- * \brief CBoard::GetCellNeighbors
- *
- * This function will return all the neighbor cells for the given cell in a given comb.
- *
- * \param pComb - The comb to get neighbors for.
- * \param uCellIdx - The index of the cell in the comb.
- * \return Vector of pairs, each pair contains a CCell pointer and it's associated honeycomb (as a pointer).
- */
-std::vector<std::pair<CHoneyComb*, u32>> CBoard::GetCellNeighbors(CHoneyComb* pComb, u32 uCellIdx)
-{
-    std::vector<std::pair<CHoneyComb*, u32>> lRtn;
-    CCell* pOriginCell = pComb->GetCellAt(uCellIdx);
-    if (nullptr != pComb && nullptr != pOriginCell)
-    {
-        if (0 == uCellIdx)
-        {
-            // Return all of the other cells.
-            for (u32 uIdx = 1; NUM_HEX_VERTS >= uIdx; ++uIdx)
-            {
-                lRtn.push_back(std::pair<CHoneyComb*, u32>(pComb, uIdx));
-            }
-        }
-        else
-        {
-            // Grab the comb's neighbors.
-            std::vector<CHoneyComb*> vNeighbors = GetCombNeighbors(pComb);
-            vNeighbors.push_back(pComb);
-
-            // Begin calculating the collision points.
-            // Simple variable to help us track half-height of the polygon.
-            const float c_nCombSize = pComb->GetCombSize();
-            const float c_nCircumRadius = c_nCombSize / 2.0f;
-            const float c_nDegreePerAngle = 180.0f / 3.0f; // Should be 60.0f
-
-            float nX = pOriginCell->GetPosition().mX - c_nCircumRadius;
-            float nY = pOriginCell->GetPosition().mY;
-            float nTheta = static_cast<float>(MAX_DEGREE - c_nDegreePerAngle); // We start with a negative degree.
-
-            // Begin calculating the points (counter-clockwise, starting at top).
-            //!\NOTE: Our hexagons have the long-leg vertical, meaning they're pointed at the top. (height > width)
-            for (size_t iIdx = 1; (NUM_HEX_VERTS+1) > iIdx; ++iIdx)
-            {
-                // See if we have a collision with any combs (ourself included).
-                SPoint collPoint(nX, nY);
-                for (std::vector<CHoneyComb*>::iterator pNeighborIter = vNeighbors.begin(); pNeighborIter != vNeighbors.end(); ++pNeighborIter)
-                {
-                    CHoneyComb* pTmpComb = (*pNeighborIter);
-                    u32 uCellIdx = pTmpComb->GetCellIdxAtPoint(collPoint);
-                    if (uCellIdx < NUM_HEX_VERTS)
-                    {
-                        lRtn.push_back(std::pair<CHoneyComb*, u32>(pTmpComb, uCellIdx));
-                    }
-                }
-
-                // Calculate the next position.
-                float nThetaRad = static_cast<float>(nTheta * (M_PI / 180.0f));
-                float nXDelta = c_nCircumRadius * cos(nThetaRad);
-                float nYDelta = c_nCircumRadius * sin(nThetaRad);
-
-                // Subtract both.
-                nX += nXDelta;
-                nY += nYDelta;
-
-                nTheta += c_nDegreePerAngle;
-                if (nTheta >= MAX_DEGREE)
-                {
-                    nTheta -= MAX_DEGREE;
-                }
-            }
-        }
-    }
-
-    return lRtn;
-}
-
-/*!
- * \brief CBoard::GetCellNeighbors [overloaded]
- *
- * This function will return all the neighbor cells for the given cell in a given comb.
- *
- * \param uCombIdx - The index of the comb.
- * \param uCellIdx - The index of the cell in the comb.
- * \return Vector of pairs, each pair contains a CCell pointer and it's associated honeycomb (as a pointer).
- */
-std::vector<std::pair<CHoneyComb*, u32>> CBoard::GetCellNeighbors(u32 uCombIdx, u32 uCellIdx)
-{
-    return GetCellNeighbors(GetComb(uCombIdx), uCellIdx);
-}
-#endif //#if 0

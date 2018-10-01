@@ -1,5 +1,21 @@
 #include "include/game.h"
 
+std::map<std::string, ECellColors> g_NameToColorMap = {
+    std::pair<std::string, ECellColors>("White", Cell_White),
+    std::pair<std::string, ECellColors>("Red", Cell_Red),
+    std::pair<std::string, ECellColors>("Orange", Cell_Orange),
+    std::pair<std::string, ECellColors>("Yellow", Cell_Yellow),
+    std::pair<std::string, ECellColors>("Lime", Cell_Lime),
+    std::pair<std::string, ECellColors>("Green", Cell_Green),
+    std::pair<std::string, ECellColors>("Cyan", Cell_Cyan),
+    std::pair<std::string, ECellColors>("Blue", Cell_Blue),
+    std::pair<std::string, ECellColors>("Purple", Cell_Purple),
+    std::pair<std::string, ECellColors>("Magenta", Cell_Magenta),
+    std::pair<std::string, ECellColors>("Pink", Cell_Pink),
+    std::pair<std::string, ECellColors>("Brown", Cell_Brown),
+    std::pair<std::string, ECellColors>("Gray", Cell_Gray)
+};
+
 // ================================ Begin CDice Implementation ================================ //
 CDice::CDice() : muLastRoll{0}
 {
@@ -46,7 +62,8 @@ u32 CDice::GetLastRoll()
 
 
 // ================================ Begin CGame Implementation ================================ //
-CGame::CGame() : mpDice{nullptr}, mpBoard{nullptr}, mpCanvas{nullptr}, muDiceMax{0xffffffff}, msTmpFileName{"colorwars_development.png"}
+CGame::CGame() : mbGamePlaying{false}, mCenter{SPoint(0,0)}, muCellSz{0}, mpDice{nullptr}, mpBoard{nullptr},
+    mpCanvas{nullptr}, muDiceMax{0xffffffff}, msTmpFileName{"colorwars_development.png"}, GameStarted{nullptr}, GameStopped{nullptr}
 {
     if (msTmpFileName.find("_DEBUG") == std::string::npos && g_cfgVars.mbIsDebug)
     {
@@ -54,7 +71,8 @@ CGame::CGame() : mpDice{nullptr}, mpBoard{nullptr}, mpCanvas{nullptr}, muDiceMax
     }
 }
 
-CGame::CGame(const CGame& aCls) : mpDice{aCls.mpDice}, mpBoard{aCls.mpBoard}, mpCanvas{aCls.mpCanvas}, muDiceMax{aCls.muDiceMax}
+CGame::CGame(const CGame& aCls) : mbGamePlaying{aCls.mbGamePlaying}, mCenter{aCls.mCenter}, muCellSz{aCls.muCellSz},
+    mpDice{aCls.mpDice}, mpBoard{aCls.mpBoard}, mpCanvas{aCls.mpCanvas}, muDiceMax{aCls.muDiceMax}, GameStarted{aCls.GameStarted}, GameStopped{aCls.GameStopped}
 {
     if (msTmpFileName.find("_DEBUG") == std::string::npos && g_cfgVars.mbIsDebug)
     {
@@ -75,48 +93,96 @@ CGame& CGame::operator=(const CGame& aCls)
 {
     if (this != &aCls)
     {
+        mbGamePlaying = aCls.mbGamePlaying;
+        mCenter = aCls.mCenter;
+        muCellSz = aCls.muCellSz;
+
         mpDice = aCls.mpDice;
         mpBoard = aCls.mpBoard;
         muDiceMax = aCls.muDiceMax;
+
+        GameStarted = aCls.GameStarted;
+        GameStopped = aCls.GameStopped;
     }
 
     return *this;
 }
 
-void CGame::NewGame(u32 iDiceMax, u32 uCellSz, SPoint qCenter)
+void CGame::SetupGame(u32 iDiceMax, u32 uCellSz, SPoint qCenter)
 {
     if (nullptr == mpDice && nullptr == mpBoard)
     {
         muDiceMax = iDiceMax;
 
-        // Always run clean!
-        EndGame();
+        // Set the class properties.
+        mCenter = qCenter;
+        muCellSz = uCellSz;
 
         // Instantiate a new CDice object.
         mpDice = new CDice();
 
         // Instantiate a new board.
         mpBoard = new CBoard();
-        mpBoard->Create(uCellSz, qCenter);
-        mvNations = mpBoard->GetNationList();
 
-        // Update the canvas.
-        int iCanvasSz = static_cast<int>(qCenter.y() * 2);
-        mpCanvas = new QImage(iCanvasSz, iCanvasSz, QImage::Format_ARGB32);
-        mpCanvas->fill(Qt::transparent); // Fills the canvas with transparency.
-
-        // Update!
-        Draw();
+        qInfo("Game has been successfully setup!");
     }
     else
     {
-        qCritical("ERR: Cannot run NewGame on a started game! Please end the current game first!");
+        qCritical("ERR: Cannot re-setup the game!");
+    }
+}
+
+void CGame::NewGame()
+{
+    if (!mbGamePlaying)
+    {
+        if (nullptr != mpDice && nullptr != mpBoard)
+        {
+            // Are we even able to generate a board?
+            if (0 < muCellSz && 0 < mCenter.x() && 0 < mCenter.y())
+            {
+                // Yes! First clear the board and then (re)generate it.
+                mpBoard->Destroy();
+
+                mpBoard->Create(muCellSz, mCenter);
+                mvNations = mpBoard->GetNationList();
+
+                // Update the canvas.
+                int iCanvasSz = static_cast<int>(mCenter.y() * 2);
+                mpCanvas = new QImage(iCanvasSz, iCanvasSz, QImage::Format_ARGB32);
+                mpCanvas->fill(Qt::transparent); // Fills the canvas with transparency.
+
+                // Update!
+                Draw();
+
+                mbGamePlaying = true;
+
+                if (nullptr != GameStarted) { GameStarted(); }
+                qInfo("Game has started!");
+            }
+            else
+            {
+                qCritical("Unable to create the board! Invalid parameters! (Did you forget to run SetupGame()?)");
+            }
+        }
+        else
+        {
+            SetupGame(muDiceMax, muCellSz, mCenter);
+            NewGame();
+        }
+    }
+    else
+    {
+        qCritical("Refusing to start a new game, game is already running!");
     }
 }
 
 void CGame::EndGame()
 {
-//    if (nullptr != mpCanvas && !mpCanvas->isNull()) { delete mpCanvas; }
+    mbGamePlaying = false;
+
+    if (nullptr != GameStopped) { GameStopped(); }
+    qInfo("Game has ended!");
 }
 
 void CGame::Play(ECellColors eAggressor, ECellColors eVictim)
@@ -133,7 +199,7 @@ void CGame::Play(ECellColors eAggressor, ECellColors eVictim)
         const u32 uSmallMvRange = static_cast<u32>(muDiceMax * 0.25f);
         const u32 uMedMvRange = static_cast<u32>(muDiceMax * 0.10f);
         const u32 uLrgMvRange = static_cast<u32>(muDiceMax * 0.05f);
-//        const u32 uHugeMvRange = static_cast<u32>(muDiceMax * 0.01f);
+        const u32 uHugeMvRange = static_cast<u32>(muDiceMax * 0.01f);
         const u32 uMidOfRange = static_cast<u32>(muDiceMax / 2.0f);
 
         // Roll the dice!
@@ -146,7 +212,8 @@ void CGame::Play(ECellColors eAggressor, ECellColors eVictim)
             {
                 if ((uLrgMvRange + uMidOfRange) >= uRoll && (uMidOfRange - uLrgMvRange) <= uRoll)
                 {
-                    /*if ((uHugeMvRange + uMidOfRange) >= uRoll && (uMidOfRange - uHugeMvRange) <= uRoll)
+//                    if ((uHugeMvRange + uMidOfRange) >= uRoll && (uMidOfRange - uHugeMvRange) <= uRoll)
+                    if (uMidOfRange == uRoll)
                     {
                         // Overtake! Move HUGE amount!
                         std::pair<bool, QString> rtnData = MoveColor(eAggressor, eVictim, 0);
@@ -154,12 +221,12 @@ void CGame::Play(ECellColors eAggressor, ECellColors eVictim)
                         else { qCritical(rtnData.second.toStdString().c_str()); }
                     }
                     else
-                    {*/
+                    {
                         // Move large amount!
                         std::pair<bool, QString> rtnData = MoveColor(eAggressor, eVictim, 12);
                         if (rtnData.first) { qInfo(rtnData.second.toStdString().c_str()); Draw(); }
                         else { qCritical(rtnData.second.toStdString().c_str()); }
-//                    }
+                    }
                 }
                 else
                 {
@@ -183,7 +250,7 @@ void CGame::Play(ECellColors eAggressor, ECellColors eVictim)
         {
             qInfo(QString("%1 has won!").arg(g_ColorNameMap[mvNations[0]->GetNationColor()]).toStdString().c_str());
             Draw();
-//            EndGame();
+            EndGame();
         }
     }
 }
@@ -223,41 +290,52 @@ std::pair<bool, QString> CGame::MoveColor(ECellColors eAggressor, ECellColors eV
             }
         }
 
-        u32 uCellTaken = 0;
-        QString lRtnStr = "No cells taken!";
-        if (nullptr != pAggrNation && nullptr != pVictimNation)
+        if (pAggrNation != pVictimNation)
         {
-            uCellTaken = DoFloodFill(pAggrNation, pVictimNation, uMvAmnt);
-
-            if (0 < uCellTaken)
+            if (0 >= uMvAmnt)
             {
-                lRtnStr = QString("%1 Took %2 cells from %3!").arg(pAggrNation->GetNationName()).arg(uCellTaken).arg(pVictimNation->GetNationName());
-                if (0 >= pVictimNation->GetNationSize())
+                uMvAmnt = pVictimNation->GetNationSize();
+            }
+
+            u32 uCellTaken = 0;
+            QString lRtnStr = "No cells taken!";
+            if (nullptr != pAggrNation && nullptr != pVictimNation)
+            {
+                uCellTaken = DoFloodFill(pAggrNation, pVictimNation, uMvAmnt);
+
+                if (0 < uCellTaken)
                 {
-                    mvNations.erase(std::find(mvNations.begin(), mvNations.end(), pVictimNation));
-                    lRtnStr = QString("%1 has conquered %2!").arg(pAggrNation->GetNationName()).arg(pVictimNation->GetNationName());
+                    lRtnStr = QString("%1 Took %2 cells from %3!").arg(pAggrNation->GetNationName()).arg(uCellTaken).arg(pVictimNation->GetNationName());
+                    if (0 >= pVictimNation->GetNationSize())
+                    {
+                        mvNations.erase(std::find(mvNations.begin(), mvNations.end(), pVictimNation));
+                        lRtnStr = QString("%1 has conquered %2!").arg(pAggrNation->GetNationName()).arg(pVictimNation->GetNationName());
+                    }
                 }
+                else
+                {
+                    lRtnStr = QString("%1 doesn't border %2!").arg(pAggrNation->GetNationName()).arg(pVictimNation->GetNationName());
+                }
+            }
+            else if (nullptr == pAggrNation && nullptr != pVictimNation)
+            {
+                lRtnStr = "Your nation doesn't exist!";
+            }
+            else if (nullptr != pAggrNation && nullptr == pVictimNation)
+            {
+                lRtnStr = "Their nation doesn't exist!";
             }
             else
             {
-                lRtnStr = QString("%1 doesn't border %2!").arg(pAggrNation->GetNationName()).arg(pVictimNation->GetNationName());
+                lRtnStr = "Neither nation exists!";
             }
-        }
-        else if (nullptr == pAggrNation && nullptr != pVictimNation)
-        {
-            lRtnStr = "Your nation doesn't exist!";
-        }
-        else if (nullptr != pAggrNation && nullptr == pVictimNation)
-        {
-            lRtnStr = "Their nation doesn't exist!";
+
+            rtnData = std::pair<bool, QString>(true, lRtnStr);
         }
         else
         {
-            lRtnStr = "Neither nation exists!";
+            rtnData = std::pair<bool, QString>(false, "You can't attack yourself :/");
         }
-
-        rtnData = std::pair<bool, QString>(true, lRtnStr);
-//        rtnData = DoInfectionFill(pAggrNation, pVictimNation, uMvAmnt);
     }
 
     return rtnData;
@@ -288,6 +366,40 @@ u32 CGame::DummyRoll()
     return (nullptr != mpDice) ? mpDice->Roll(3, muDiceMax) : 0;
 }
 
+void CGame::PrintNationStats(ECellColors eClr)
+{
+    if (NationExists(eClr))
+    {
+        const size_t iBuffSz = 4096;
+        char* pStats = new char[iBuffSz];
+        memset(pStats, 0, iBuffSz);
+
+        for (std::vector<CNation*>::iterator pNatIter = mvNations.begin(); pNatIter != mvNations.end(); ++pNatIter)
+        {
+            CNation* pTmpNat = (*pNatIter);
+            if (pTmpNat->GetNationColor() == eClr)
+            {
+                snprintf(pStats, iBuffSz, "Nation Statistics\n"
+                                          "Nation Name: %s\n"
+                                          "Nation Color: %s\n"
+                                          "Cells Owned: %u",
+                         pTmpNat->GetNationName().toStdString().c_str(), g_ColorNameMap[pTmpNat->GetNationColor()].toStdString().c_str(), pTmpNat->GetNationSize());
+                break;
+            }
+        }
+
+        if (nullptr != pStats && 0 < strlen(pStats))
+        {
+            qInfo(pStats);
+            delete[] pStats;
+        }
+    }
+    else
+    {
+        qCritical(QString("Nation %1 = DIED!").arg(g_ColorNameMap[eClr]).toStdString().c_str());
+    }
+}
+
 bool CGame::NationExists(ECellColors eColor)
 {
     bool bFoundNation = false;
@@ -301,6 +413,16 @@ bool CGame::NationExists(ECellColors eColor)
     }
 
     return bFoundNation;
+}
+
+bool CGame::IsPlaying()
+{
+    return mbGamePlaying;
+}
+
+bool CGame::IsSetup()
+{
+    return (nullptr != mpDice && nullptr != mpBoard);
 }
 
 u32 CGame::GetDiceMax()
@@ -321,6 +443,26 @@ QImage* CGame::GetCanvas()
 void CGame::SetDiceMax(u32 iMaxium)
 {
     muDiceMax = iMaxium;
+}
+
+void CGame::SetStartedCallback(void (*fxnCallback)())
+{
+    GameStarted = fxnCallback;
+}
+
+void CGame::SetStoppedCallback(void (*fxnCallback)())
+{
+    GameStopped = fxnCallback;
+}
+
+void CGame::SetCellSize(u32 uCellSz)
+{
+    muCellSz = uCellSz;
+}
+
+void CGame::SetCanvasCenter(SPoint aPt)
+{
+    mCenter = aPt;
 }
 
 u32 CGame::DoFloodFill(CNation* aAggrNation, CNation* aVictimNation, u32 uMvAmnt)

@@ -5,10 +5,10 @@
 
 std::map<ECellColors, QString> g_ColorNameMap;
 CfgVars g_cfgVars;
-QList<QString> g_LogList;
 
 CGame *mpGame;
 QTimer *mpTicker;
+CMainWindow *pMainWnd;
 
 // Logging.
 static std::filebuf l_fileBuff;
@@ -91,7 +91,10 @@ void HandleQLoggingGUI(QtMsgType type, const QMessageLogContext &context, const 
         std::cout<< lMsg.toStdString()<< std::endl;
         l_logStream<< QDateTime::currentDateTimeUtc().toString("yyyy-dd-MM hh:mm:ss.z t").toStdString()<< " "<< lMsg.toStdString()<< std::endl;
 
-        g_LogList.append(lMsg);
+        if (nullptr != pMainWnd)
+        {
+            pMainWnd->UpdateLog(lMsg);
+        }
     }
 }
 
@@ -169,9 +172,9 @@ void OpenLogAndPrintHeader()
 }
 // -------------------------------- END LOGGING -------------------------------- //
 
-void TickGame(CMainWindow* pWnd = nullptr)
+void AutoGame(CMainWindow* pWnd = nullptr)
 {
-    if (nullptr != mpGame)
+    if (nullptr != mpGame && mpGame->IsPlaying())
     {
         std::vector<ECellColors> vRandClr = {Cell_Red, Cell_Orange, Cell_Yellow, Cell_Lime, Cell_Green,
                                              Cell_Cyan, Cell_Blue, Cell_Purple, Cell_Magenta, Cell_Pink,
@@ -217,6 +220,14 @@ char* UpdateProcName(char* pCurrName)
     snprintf(pNewName, uMaxSz, "ColorWars %s %s [%s] (%s)", sPlatform.c_str(), sVersion.c_str(), sArch.c_str(), pCurrName);
 
     return pNewName;
+}
+
+void StopGameTimer()
+{
+    if (nullptr != mpTicker)
+    {
+        mpTicker->stop();
+    }
 }
 
 int main(int argc, char *argv[])
@@ -274,20 +285,30 @@ int main(int argc, char *argv[])
         SetupColorNames();
 
         QApplication a(argc, argv);
-        CMainWindow w;
+        pMainWnd = new CMainWindow();
+
+        // Canvas properties.
+        u32 uCellSz = 128;
+        SPoint lCenter(1024, 1024);
 
         mpGame = new CGame();
+        mpGame->SetDiceMax(0xff);
+        mpGame->SetCellSize(uCellSz);
+        mpGame->SetCanvasCenter(lCenter);
 
         mpTicker = new QTimer();
-        mpTicker->connect(mpTicker, &QTimer::timeout, [&]{ TickGame(&w); });
+        mpTicker->connect(mpTicker, &QTimer::timeout, [&]{ AutoGame(pMainWnd); });
+
+        // Setup the game callbacks.
+        mpGame->SetStoppedCallback(&StopGameTimer);
 
         if (bUseGui)
         {
             qInstallMessageHandler(HandleQLoggingGUI);
-            w.SetGamePtr(mpGame);
-            w.SetTickPtr(mpTicker);
-            w.Setup();
-            w.show();
+            pMainWnd->SetGamePtr(mpGame);
+            pMainWnd->SetTickPtr(mpTicker);
+            pMainWnd->Setup();
+            pMainWnd->show();
         }
         else
         {

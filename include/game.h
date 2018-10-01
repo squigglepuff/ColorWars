@@ -46,12 +46,13 @@ class CGame
 public:
     CGame();
     CGame(const CGame& aCls);
-    ~CGame();
+    virtual ~CGame();
 
     CGame& operator=(const CGame& aCls);
 
     // Workers.
-    void NewGame(u32 iDiceMax = 0xffffffff, u32 uCellSz = 128, SPoint qCenter = SPoint(1024, 1024));
+    void SetupGame(u32 iDiceMax = 0xffffffff, u32 uCellSz = 128, SPoint qCenter = SPoint(1024, 1024));
+    void NewGame();
     void Play(ECellColors eAggressor, ECellColors eVictim);
     void EndGame();
     void Destroy();
@@ -62,20 +63,34 @@ public:
 
     void Draw();
 
+    void PrintNationStats(ECellColors eClr);
+
     // Getters.
     u32 GetDiceMax();
     CBoard* GetBoard();
 
     bool NationExists(ECellColors eColor);
+    bool IsPlaying();
+    bool IsSetup();
 
     QImage* GetCanvas();
 
     // Setters.
     void SetDiceMax(u32 iMaxium = 0xffffffff);
 
+    void SetStartedCallback(void (*fxnCallback)());
+    void SetStoppedCallback(void (*fxnCallback)());
+
+    void SetCellSize(u32 uCellSz);
+    void SetCanvasCenter(SPoint aPt);
+
 private:
     u32 DoFloodFill(CNation* aAggrNation, CNation* aVictimNation, u32 uMvAmnt);
     u32 DoInfectionFill(CNation* aAggrNation, CNation* aVictimNation, u32 uMvAmnt);
+
+    bool mbGamePlaying; //!< A simple flag to determine if the game is playing or not.
+    SPoint mCenter; //!< The center of the board to draw from.
+    u32 muCellSz; //!< The size of the cells to draw.
 
     CDice *mpDice; //!< Pointer to the dice used to make decisions.
     CBoard *mpBoard; //!< Pointer to the active game board.
@@ -83,6 +98,9 @@ private:
     std::vector<CNation*> mvNations; //!< Vector of pointers to the current (live) nations at play.
     u32 muDiceMax; //!< The maximum roll amount for a dice "throw".
     std::string msTmpFileName; //!< Temporary filename for the image to write to.
+
+    void (*GameStarted)();
+    void (*GameStopped)();
 };
 
 #endif // GAME_H

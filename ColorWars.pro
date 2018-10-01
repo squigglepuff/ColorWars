@@ -35,7 +35,8 @@ SOURCES += \
         src/mainwindow.cpp \
     src/board.cpp \
     src/game.cpp \
-    src/nation.cpp
+    src/nation.cpp \
+    src/console.cpp
 
 HEADERS += \
         include/honeycomb.h \
@@ -43,7 +44,8 @@ HEADERS += \
     include/globals.h \
     include/board.h \
     include/game.h \
-    include/nation.h
+    include/nation.h \
+    include/console.h
 
 # Specify Build settings.
 unix {

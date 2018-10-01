@@ -5,5 +5,6 @@
         <file alias="ICO_WARN">assets/Warn.png</file>
         <file alias="ICO_APP">icon.png</file>
         <file alias="ICO_DEBUG">assets/Debug.png</file>
+        <file alias="ICO_CMD">assets/cmd.png</file>
     </qresource>
 </RCC>

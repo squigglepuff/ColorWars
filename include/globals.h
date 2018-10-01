@@ -93,6 +93,20 @@ enum ECellColors
     Comb_Mixed = 0xcff1 //!< Only used by honeycombs and not individual cells!
 };
 
+enum ECommand
+{
+    Cmd_NewGame,
+    Cmd_PlayGame,
+    Cmd_PauseGame,
+    Cmd_StopGame,
+    Cmd_Move,
+    Cmd_Redraw,
+    Cmd_Help,
+    Cmd_Quit,
+    Cmd_Stats,
+    Cmd_Unknown
+};
+
 // Custom data structures.
 struct SPoint
 {
@@ -117,8 +131,17 @@ struct CfgVars
     std::string msRootDir = "./"; //!< The root directory for the game.
 };
 
+struct SCommand
+{
+    ECommand meCmd;
+    std::vector<std::string> mvArgs;
+
+    SCommand(ECommand eCmd = Cmd_Redraw, std::vector<std::string> vArgs = {}) : meCmd{eCmd}, mvArgs{vArgs} { /* Intentionally left blank. */ }
+};
+
 // External functions and variables.
 extern std::map<ECellColors, QString> g_ColorNameMap;
+extern std::map<std::string, ECellColors> g_NameToColorMap;
 extern CfgVars g_cfgVars;
 
 #endif // #if !defined(_CELL_COLORS)

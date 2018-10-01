@@ -49,6 +49,14 @@ void CMainWindow::SetTickPtr(QTimer* pTimer)
     mpTicker = pTimer;
 }
 
+void CMainWindow::UpdateLog(QString lMsg)
+{
+    if (nullptr != mpConsole)
+    {
+        mpConsole->NewLog(lMsg);
+    }
+}
+
 void CMainWindow::paintEvent(QPaintEvent *apEvent)
 {
     if (nullptr != apEvent)
@@ -57,31 +65,6 @@ void CMainWindow::paintEvent(QPaintEvent *apEvent)
         {
             QImage qImg = mpGame->GetCanvas()->scaled(mpGameCanvas->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
             mpGameCanvas->setPixmap(QPixmap::fromImage(qImg));
-        }
-
-        for (int iIdx = mpChatLog->count(); iIdx < g_LogList.size(); ++iIdx)
-        {
-            if (g_LogList[iIdx].contains("[Debug]: "))
-            {
-                QListWidgetItem *pItem = new QListWidgetItem(QIcon(tr(":/ICO_DEBUG")), g_LogList[iIdx].remove("[Debug]: "));
-                mpChatLog->addItem(pItem);
-            }
-            else if (g_LogList[iIdx].contains("[Info]: "))
-            {
-                QListWidgetItem *pItem = new QListWidgetItem(QIcon(tr(":/ICO_INFO")), g_LogList[iIdx].remove("[Info]: "));
-                mpChatLog->addItem(pItem);
-            }
-            else if (g_LogList[iIdx].contains("[Warning]: "))
-            {
-                QListWidgetItem *pItem = new QListWidgetItem(QIcon(tr(":/ICO_WARN")), g_LogList[iIdx].remove("[Warning]: "));
-                mpChatLog->addItem(pItem);
-            }
-            else if (g_LogList[iIdx].contains("[Error]: "))
-            {
-                QListWidgetItem *pItem = new QListWidgetItem(QIcon(tr(":/ICO_ERR")), g_LogList[iIdx].remove("[Error]: "));
-                mpChatLog->addItem(pItem);
-            }
-            mpChatLog->scrollToBottom();
         }
     }
     else
@@ -103,37 +86,173 @@ void CMainWindow::contextMenuEvent(QContextMenuEvent *apEvent)
     }
 }
 
-void CMainWindow::playGame(bool)
+void CMainWindow::startGame(bool)
 {
-    mpTicker->start(500);
-    mlActions.at(0)->setText(tr("Start Game"));
+    if (!mpGame->IsPlaying())
+    {
+        mpGame->NewGame();
+    }
+
+    mlActions.at(1)->setText(tr("Play Game"));
     mlActions.at(0)->setEnabled(false);
     mlActions.at(1)->setEnabled(true);
+    mlActions.at(2)->setEnabled(false);
+    mlActions.at(3)->setEnabled(false);
+
+    repaint();
+}
+
+void CMainWindow::playGame(bool)
+{
+    mpTicker->start(250);
+    mlActions.at(0)->setEnabled(false);
+    mlActions.at(1)->setEnabled(false);
     mlActions.at(2)->setEnabled(true);
+    mlActions.at(3)->setEnabled(true);
+
+    repaint();
 }
 
 void CMainWindow::pauseGame(bool)
 {
     mpTicker->stop();
-    mlActions.at(0)->setText(tr("Resume Game"));
-    mlActions.at(0)->setEnabled(true);
-    mlActions.at(1)->setEnabled(false);
-    mlActions.at(2)->setEnabled(true);
+    mlActions.at(1)->setText(tr("Resume Game"));
+    mlActions.at(0)->setEnabled(false);
+    mlActions.at(1)->setEnabled(true);
+    mlActions.at(2)->setEnabled(false);
+    mlActions.at(3)->setEnabled(true);
 }
 
 void CMainWindow::stopGame(bool)
 {
-    const u32 c_iCanvasSz = 2048;
-    SPoint qCenter(c_iCanvasSz / 2.0, c_iCanvasSz / 2.0);
-
     mpTicker->stop();
-    mlActions.at(0)->setText(tr("Start Game"));
+    mlActions.at(1)->setText(tr("Play Game"));
     mlActions.at(0)->setEnabled(true);
     mlActions.at(1)->setEnabled(false);
     mlActions.at(2)->setEnabled(false);
+    mlActions.at(3)->setEnabled(false);
 
-    mpGame->EndGame();
-    mpGame->NewGame(0xff, 128, qCenter);
+    if (mpGame->IsPlaying())
+    {
+        mpGame->EndGame();
+    }
+
+    repaint();
+}
+
+void CMainWindow::RunCommand(SCommand aCmd)
+{
+    if (nullptr != mpConsole)
+    {
+        QString sCmd = "";
+        switch (aCmd.meCmd)
+        {
+            case Cmd_NewGame:
+            {
+                if (!mpGame->IsPlaying())
+                {
+                    startGame(false);
+                }
+                else
+                {
+                    qCritical("Refusing to start an already playing game!");
+                }
+                sCmd = "New Game";
+                break;
+            }
+            case Cmd_PlayGame:
+            {
+                if (mpGame->IsSetup())
+                {
+                    playGame(false);
+                }
+                else
+                {
+                    qCritical("Unable to play an empty game! Please run \"!new\".");
+                }
+                sCmd = "Play Game";
+                break;
+            }
+            case Cmd_PauseGame:
+            {
+                if (mpGame->IsPlaying())
+                {
+                    pauseGame(false);
+                }
+                else
+                {
+                    qCritical("Unable to pause a stopped game!");
+                }
+                sCmd = "Pause Game";
+                break;
+            }
+            case Cmd_StopGame:
+            {
+                stopGame(false);
+                sCmd = "Stop Game";
+                break;
+            }
+            case Cmd_Move:
+            {
+                // Does nothing for now!
+                qWarning("This isn't implemented yet!");
+                sCmd = "Move";
+                break;
+            }
+            case Cmd_Redraw:
+            {
+                if (nullptr != mpGame) { mpGame->Draw(); }
+                sCmd = "Redraw";
+                break;
+            }
+            case Cmd_Help:
+            {
+                qInfo("Discord Commands:\n"
+                      "!move <color1> <color2>  -  Move a color1 to color2.\n"
+                      "!new     -  Run a new game.\n"
+                      "!redraw  -  Redraw the board.\n"
+                      "!stats <color>  -  Give a color nation's stats.\n\n"
+                      "CLI Commands:\n"
+                      "/auto  -  Play the current game.\n"
+                      "/help  -  Show this help.\n"
+                      "/pause -  Pause the current game.\n"
+                      "/quit  -  Quits the application.\n"
+                      "/stop  -  Stop/End the current game.");
+                sCmd = "Help";
+                break;
+            }
+            case Cmd_Quit:
+            {
+                close();
+                sCmd = "Close Application";
+                break;
+            }
+            case Cmd_Stats:
+            {
+                if (0 < aCmd.mvArgs.size())
+                {
+                    // Locate the nation's color.
+                    // g_NameToColorMap
+                    QString sClr = QString::fromStdString(aCmd.mvArgs[0]);
+                    sClr = sClr.toLower(); // Lower-case it.
+                    sClr[0] = sClr[0].toLatin1() - ' '; // Capitalize the first letter.
+
+                    mpGame->PrintNationStats(g_NameToColorMap[sClr.toStdString()]);
+                }
+                sCmd = "Nation Stats";
+                break;
+            }
+            default:
+            {
+                qCritical("Unknown or Invalid command! See \"/help\".");
+                sCmd = "UNKNOWN/INVLAID";
+                break;
+            }
+        }
+
+        mpConsole->NewLog(tr("[CMD]: <<< %1").arg(sCmd));
+        repaint();
+    }
 }
 
 void CMainWindow::SetupUI()
@@ -141,14 +260,6 @@ void CMainWindow::SetupUI()
     // Setup the central widget first.
     QWidget *pCentralWidget = new QWidget(this);
     setCentralWidget(pCentralWidget);
-
-    // Setup the log widget.
-    mpChatLog = new QListWidget();
-    mpChatLog->setMaximumWidth(rect().width() / 2.5);
-    mpChatLog->setMinimumWidth(rect().width() / 8);
-    mpChatLog->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    mpChatLog->setToolTip(tr("Console Log"));
-    mpChatLog->setAutoScroll(true);
 
     mpGameCanvas = new QLabel();
     if (nullptr != mpGame && nullptr != mpGame->GetCanvas())
@@ -168,26 +279,37 @@ void CMainWindow::SetupUI()
     // Setup the layout.
     QHBoxLayout *pLay = new QHBoxLayout();
     pLay->addWidget(mpGameCanvas);
-    pLay->addWidget(mpChatLog);
 
     pCentralWidget->setLayout(pLay);
 
     // Setup the menu stuff.
-    mlActions.append(new QAction(tr("Play Game")));
-    mlActions[0]->setText(tr("Start Game"));
+    mlActions.append(new QAction(tr("New Game")));
+    mlActions[0]->setText(tr("New Game"));
     mlActions[0]->setEnabled(true);
-    connect(mlActions[0], &QAction::triggered, this, &CMainWindow::playGame);
+    connect(mlActions[0], &QAction::triggered, this, &CMainWindow::startGame);
+
+    mlActions.append(new QAction(tr("Play Game")));
+    mlActions[1]->setText(tr("Play Game"));
+    mlActions[1]->setEnabled(false);
+    connect(mlActions[1], &QAction::triggered, this, &CMainWindow::playGame);
 
     mlActions.append(new QAction(tr("Pause Game")));
-    mlActions[1]->setText(tr("Pause Game"));
-    mlActions[1]->setEnabled(false);
-    connect(mlActions[1], &QAction::triggered, this, &CMainWindow::pauseGame);
+    mlActions[2]->setText(tr("Pause Game"));
+    mlActions[2]->setEnabled(false);
+    connect(mlActions[2], &QAction::triggered, this, &CMainWindow::pauseGame);
 
     mlActions.append(new QAction(tr("Stop Game")));
-    mlActions[2]->setText(tr("Stop Game"));
-    mlActions[2]->setEnabled(false);
-    connect(mlActions[2], &QAction::triggered, this, &CMainWindow::stopGame);
+    mlActions[3]->setText(tr("Stop Game"));
+    mlActions[3]->setEnabled(false);
+    connect(mlActions[3], &QAction::triggered, this, &CMainWindow::stopGame);
 
     // Set the window icon.
     setWindowIcon(QIcon(tr(":/ICO_APP")));
+
+    // Setup the console window.
+    mpConsole = new CConsole(this);
+    mpConsole->Setup();
+    mpConsole->show();
+
+    connect(mpConsole, &CConsole::Command, this, &CMainWindow::RunCommand);
 }

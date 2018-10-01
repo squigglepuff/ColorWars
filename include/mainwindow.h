@@ -6,9 +6,9 @@
 #include <QPainter>
 #include <QAction>
 #include <QLabel>
-#include <QListWidget>
 #include <QTimer>
 
+#include "include/console.h"
 #include "include/game.h"
 
 #define NUM_MENU_ITEMS 4
@@ -26,14 +26,19 @@ public:
     void SetGamePtr(CGame* pGame = nullptr);
     void SetTickPtr(QTimer* pTimer = nullptr);
 
+    void UpdateLog(QString lMsg);
+
 protected:
     void paintEvent(QPaintEvent *apEvent);
     void contextMenuEvent(QContextMenuEvent *apEvent);
 
 public slots:
+    void startGame(bool);
     void playGame(bool);
     void pauseGame(bool);
     void stopGame(bool);
+
+    void RunCommand(SCommand aCmd);
 
 private:
     void SetupUI();
@@ -41,6 +46,8 @@ private:
     CGame *mpGame;
     QTimer *mpTicker;
     QImage *mpCanvas;
+
+    CConsole *mpConsole;
 
     // GUI elements.
     QLabel* mpGameCanvas;
