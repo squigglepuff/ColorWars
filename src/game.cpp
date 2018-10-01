@@ -290,7 +290,7 @@ std::pair<bool, QString> CGame::MoveColor(ECellColors eAggressor, ECellColors eV
             }
         }
 
-        if (pAggrNation != pVictimNation)
+        if (nullptr != pAggrNation && nullptr != pVictimNation)
         {
             if (0 >= uMvAmnt)
             {
