@@ -172,6 +172,37 @@ void OpenLogAndPrintHeader()
 }
 // -------------------------------- END LOGGING -------------------------------- //
 
+char* UpdateProcName(char* pCurrName)
+{
+    const size_t uMaxSz = 4096;
+    const std::string sOurName = "ColorWars";
+
+    std::string sPlatform = QSysInfo::productType().toStdString();
+    std::string sVersion = QSysInfo::productVersion().toStdString();
+    std::string sArch = QSysInfo::buildCpuArchitecture().toStdString();
+
+    char* pNewName = new char[uMaxSz];
+    memset(pNewName, 0, uMaxSz);
+
+    // Example: ColorWars Ubuntu 18.04 [x86_64] (/usr/bin/ColorWars)
+    snprintf(pNewName, uMaxSz, "ColorWars %s %s [%s] (%s)", sPlatform.c_str(), sVersion.c_str(), sArch.c_str(), pCurrName);
+
+    return pNewName;
+}
+
+// -------------------------------- BEGIN GAME LOOP -------------------------------- //
+void RunGame(CMainWindow* pWnd = nullptr)
+{
+    if (nullptr != mpGame && mpGame->IsPlaying())
+    {
+        // Here we would POLL any network sockets.
+
+        // Here we would apply results from the POLL to the game as needed.
+
+        if (nullptr != pWnd) { pWnd->repaint(); }
+    }
+}
+
 void AutoGame(CMainWindow* pWnd = nullptr)
 {
     if (nullptr != mpGame && mpGame->IsPlaying())
@@ -204,24 +235,6 @@ void AutoGame(CMainWindow* pWnd = nullptr)
     }
 }
 
-char* UpdateProcName(char* pCurrName)
-{
-    const size_t uMaxSz = 4096;
-    const std::string sOurName = "ColorWars";
-
-    std::string sPlatform = QSysInfo::productType().toStdString();
-    std::string sVersion = QSysInfo::productVersion().toStdString();
-    std::string sArch = QSysInfo::buildCpuArchitecture().toStdString();
-
-    char* pNewName = new char[uMaxSz];
-    memset(pNewName, 0, uMaxSz);
-
-    // Example: ColorWars Ubuntu 18.04 [x86_64] (/usr/bin/ColorWars)
-    snprintf(pNewName, uMaxSz, "ColorWars %s %s [%s] (%s)", sPlatform.c_str(), sVersion.c_str(), sArch.c_str(), pCurrName);
-
-    return pNewName;
-}
-
 void StopGameTimer()
 {
     if (nullptr != mpTicker)
@@ -229,6 +242,7 @@ void StopGameTimer()
         mpTicker->stop();
     }
 }
+// -------------------------------- END GAME LOOP -------------------------------- //
 
 int main(int argc, char *argv[])
 {

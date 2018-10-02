@@ -193,13 +193,12 @@ void CGame::Play(ECellColors eAggressor, ECellColors eVictim)
          * These are:
          *  [x - y](25% of range){center of range}  --->  Move 3 spaces
          *  [x - y](10% of range){center of range}  --->  Move 6 spaces
-         *  [x - y](5% of range){center of range}   --->  Move 12 spaces
+         *  [x - y](5% of range){center of range}   --->  Move 9 spaces
          *  [x - y](1% of range){center of range}   --->  Overtake
          */
         const u32 uSmallMvRange = static_cast<u32>(muDiceMax * 0.25f);
         const u32 uMedMvRange = static_cast<u32>(muDiceMax * 0.10f);
         const u32 uLrgMvRange = static_cast<u32>(muDiceMax * 0.05f);
-        const u32 uHugeMvRange = static_cast<u32>(muDiceMax * 0.01f);
         const u32 uMidOfRange = static_cast<u32>(muDiceMax / 2.0f);
 
         // Roll the dice!
@@ -212,7 +211,6 @@ void CGame::Play(ECellColors eAggressor, ECellColors eVictim)
             {
                 if ((uLrgMvRange + uMidOfRange) >= uRoll && (uMidOfRange - uLrgMvRange) <= uRoll)
                 {
-//                    if ((uHugeMvRange + uMidOfRange) >= uRoll && (uMidOfRange - uHugeMvRange) <= uRoll)
                     if (uMidOfRange == uRoll)
                     {
                         // Overtake! Move HUGE amount!
@@ -223,7 +221,7 @@ void CGame::Play(ECellColors eAggressor, ECellColors eVictim)
                     else
                     {
                         // Move large amount!
-                        std::pair<bool, QString> rtnData = MoveColor(eAggressor, eVictim, 12);
+                        std::pair<bool, QString> rtnData = MoveColor(eAggressor, eVictim, 7);
                         if (rtnData.first) { qInfo(rtnData.second.toStdString().c_str()); Draw(); }
                         else { qCritical(rtnData.second.toStdString().c_str()); }
                     }
@@ -231,7 +229,7 @@ void CGame::Play(ECellColors eAggressor, ECellColors eVictim)
                 else
                 {
                     // Move medium amount!
-                    std::pair<bool, QString> rtnData = MoveColor(eAggressor, eVictim, 6);
+                    std::pair<bool, QString> rtnData = MoveColor(eAggressor, eVictim, 5);
                     if (rtnData.first) { qInfo(rtnData.second.toStdString().c_str()); Draw(); }
                     else { qCritical(rtnData.second.toStdString().c_str()); }
                 }
@@ -244,6 +242,13 @@ void CGame::Play(ECellColors eAggressor, ECellColors eVictim)
                 else { qCritical(rtnData.second.toStdString().c_str()); }
             }
         }
+
+        const size_t ciBuffSz = 4096;
+        char* pMsg = new char[ciBuffSz];
+        memset(pMsg, 0, ciBuffSz);
+        snprintf(pMsg, ciBuffSz, "You rolled a %u! [needed %u - %u].", uRoll, (uMidOfRange - uSmallMvRange), (uSmallMvRange + uMidOfRange));
+        qInfo(pMsg);
+        delete[] pMsg;
 
         // Check if there is only 1 color.
         if (1 == mvNations.size())

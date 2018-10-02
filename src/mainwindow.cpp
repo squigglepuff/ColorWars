@@ -195,7 +195,50 @@ void CMainWindow::RunCommand(SCommand aCmd)
             case Cmd_Move:
             {
                 // Does nothing for now!
-                qWarning("This isn't implemented yet!");
+                if (0 < aCmd.mvArgs.size())
+                {
+                    // Grab the two arguments and make sure they're valid.
+                    QString sTmp = QString::fromStdString(aCmd.mvArgs[0]);
+                    sTmp = sTmp.toLower(); // Lower-case it.
+                    sTmp[0] = sTmp[0].toLatin1() - ' '; // Capitalize the first letter.
+                    std::string lAggr = sTmp.toStdString();
+
+                    std::string lVictim = "White";
+                    if (!mpGame->NationExists(Cell_White))
+                    {
+                        sTmp = QString::fromStdString(aCmd.mvArgs[1]);
+                        sTmp = sTmp.toLower(); // Lower-case it.
+                        sTmp[0] = sTmp[0].toLatin1() - ' '; // Capitalize the first letter.
+                        lVictim = sTmp.toStdString();
+                    }
+                    else
+                    {
+                        qWarning("White still exists, so we're gonna attack them instead.");
+                    }
+
+                    if (g_NameToColorMap.end() != g_NameToColorMap.find(lAggr) && g_NameToColorMap.end() != g_NameToColorMap.find(lVictim))
+                    {
+                        mpGame->Play(g_NameToColorMap[lAggr], g_NameToColorMap[lVictim]);
+                    }
+                    else if (g_NameToColorMap.end() == g_NameToColorMap.find(lAggr) && g_NameToColorMap.end() != g_NameToColorMap.find(lVictim))
+                    {
+                        std::string lMsg = "Your nation (";
+                        lMsg.append(lAggr);
+                        lMsg.append(") doesn't exist!");
+                        qCritical(lMsg.c_str());
+                    }
+                    else if (g_NameToColorMap.end() != g_NameToColorMap.find(lAggr) && g_NameToColorMap.end() == g_NameToColorMap.find(lVictim))
+                    {
+                        std::string lMsg = "Their nation (";
+                        lMsg.append(lVictim);
+                        lMsg.append(") doesn't exist!");
+                        qCritical(lMsg.c_str());
+                    }
+                    else
+                    {
+                        qCritical("Neither nation exists!");
+                    }
+                }
                 sCmd = "Move";
                 break;
             }
