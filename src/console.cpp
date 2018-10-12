@@ -92,7 +92,7 @@ void CConsole::NewLog(QString sLine)
     }
 }
 
-SCommand ParseCommandString(QString lStr, std::__cxx11::string sSender, u32 uSenderID)
+SCommand ParseCommandString(QString lStr, std::string sSender, u32 uSenderID)
 {
     // Chop off the front element as it's the actual command.
     SCommand lCmd;
