@@ -135,13 +135,7 @@ void CGame::NewGame()
 
                 // Fire up the ticker.
                 mpTicker = new QTimer();
-                connect(mpTicker, &QTimer::timeout, [&]{
-                    qApp->processEvents();
-                    if (nullptr != mpNetServer)
-                    {
-                        mpNetServer->Broadcast(Heartbeat_Packet, new QByteArray("~$$HEARTBEAT"));
-                    }
-                });
+                connect(mpTicker, &QTimer::timeout, this, &CGame::Tick);
                 mpTicker->start(c_miTickRate);
             }
             else
@@ -902,6 +896,23 @@ void CGame::Net_UpdateBoard(std::map<u64, ECellColors> lClrMap)
 
     // Send a redraw command.
     ProcessCommand(SCommand(Cmd_Redraw));
+}
+
+void CGame::Tick()
+{
+    qApp->processEvents();
+
+    if (nullptr != mpNetServer)
+    {
+        mpNetServer->Broadcast(Heartbeat_Packet, new QByteArray("~$$HEARTBEAT"));
+        mpNetServer->FlushAll();
+    }
+    else if (nullptr != mpNetClient)
+    {
+        mpNetClient->FlushAll();
+    }
+
+    qApp->processEvents();
 }
 
 // ================================ End CGame Implementation ================================ //

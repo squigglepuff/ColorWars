@@ -20,6 +20,8 @@ public:
     void Broadcast(EPacketType eType = Log_Packet, QByteArray* pPayload = nullptr);
     bool Transmit(u32 uClient, EPacketType eType = Log_Packet, QByteArray* pPayload = nullptr);
 
+    void FlushAll();
+
 protected:
     void incomingConnection(qintptr socketDescriptor);
 

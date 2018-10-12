@@ -88,6 +88,7 @@ public:
 public slots:
     void ProcessCommand(SCommand lCmd);
     void Net_UpdateBoard(std::map<u64, ECellColors> lClrMap);
+    void Tick(); // This is used to "tick" the game and server.
 
 signals:
     void SendGUI_Command(const char* sCmdName = "Not SET!");

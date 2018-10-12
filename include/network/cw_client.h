@@ -20,6 +20,8 @@ public:
 
     bool IsAlive();
 
+    void FlushAll();
+
 public slots:
     void Heartbeat();
     void HandleInput(CTcpSocket *pClient, QByteArray* pData = nullptr);

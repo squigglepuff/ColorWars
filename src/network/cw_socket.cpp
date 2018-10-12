@@ -108,12 +108,14 @@ void CTcpSocket::ReadData()
 
 u64 CTcpSocket::WriteData(QByteArray *pData)
 {
+    u64 uBytesWritten = 0;
     if (nullptr != pData && isWritable())
     {
-        return writeData(pData->data(), pData->length());
+        uBytesWritten = writeData(pData->data(), pData->length());
+        flush();
     }
 
-    return 0;
+    return uBytesWritten;
 }
 
 void CTcpSocket::HandleError(QAbstractSocket::SocketError sockErr)

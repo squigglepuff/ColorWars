@@ -228,6 +228,18 @@ bool CServer::Transmit(u32 uClient, EPacketType eType, QByteArray* pPayload)
     return bSuccess;
 }
 
+void CServer::FlushAll()
+{
+    if (isListening())
+    {
+        for (std::map<u32, CTcpSocket*>::iterator pIter = mmClients.begin(); pIter != mmClients.end(); ++pIter)
+        {
+            std::pair<u32, CTcpSocket*> lTmp = (*pIter);
+            lTmp.second->flush();
+        }
+    }
+}
+
 void CServer::incomingConnection(qintptr socketDescriptor)
 {
     CTcpSocket *pNewSock = new CTcpSocket(this);

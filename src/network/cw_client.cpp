@@ -125,6 +125,14 @@ bool CClient::IsAlive()
     return (nullptr != mpSocket && mpSocket->isOpen());
 }
 
+void CClient::FlushAll()
+{
+    if (nullptr != mpSocket)
+    {
+        mpSocket->flush();
+    }
+}
+
 void CClient::Heartbeat()
 {
     Transmit(Heartbeat_Packet, new QByteArray("~$$HEARTBEAT"));
