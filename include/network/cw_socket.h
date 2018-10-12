@@ -44,6 +44,7 @@ signals:
 private:
     ESocketState meState;
     std::string msHostname;
+    QByteArray *mpInternalBuffer;
 };
 
 #endif // CW_SOCKET_H

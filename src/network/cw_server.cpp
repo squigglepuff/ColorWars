@@ -130,7 +130,7 @@ bool CServer::VerifyHandshake(SPacket lPacket, CTcpSocket* pClient)
 
                     if (!bSuccess)
                     {
-                        qCritical("Unable to send HOST QUERY out to %s (%s) :(", pClient->GetHostname().c_str(), pClient->GetIP().c_str());
+                        qCritical("Unable to send HOST QUERY out to %s :(", pClient->GetIP().c_str());
 
                         mmClients.erase(lPacket.muClientUID);
                         pClient->SetState(Dead_State);
@@ -140,7 +140,7 @@ bool CServer::VerifyHandshake(SPacket lPacket, CTcpSocket* pClient)
                     else
                     {
                         pClient->SetState(Verified_State);
-                        qInfo("Successfully verified client: %s (%s)", pClient->GetHostname().c_str(), pClient->GetIP().c_str());
+                        qInfo("Successfully verified client: %s", pClient->GetIP().c_str());
                     }
                 }
                 else
@@ -235,6 +235,7 @@ void CServer::FlushAll()
         for (std::map<u32, CTcpSocket*>::iterator pIter = mmClients.begin(); pIter != mmClients.end(); ++pIter)
         {
             std::pair<u32, CTcpSocket*> lTmp = (*pIter);
+            lTmp.second->ReadData();
             lTmp.second->flush();
         }
     }

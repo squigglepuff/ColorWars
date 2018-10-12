@@ -129,6 +129,7 @@ void CClient::FlushAll()
 {
     if (nullptr != mpSocket)
     {
+        mpSocket->ReadData();
         mpSocket->flush();
     }
 }

@@ -1,7 +1,7 @@
 #include "include/network/cw_socket.h"
 
 // -------------------------------- BEGIN CUdpSocket -------------------------------- //
-CTcpSocket::CTcpSocket(QObject *pParent) : QTcpSocket{pParent}, meState{Unverified_State}, msHostname{""}
+CTcpSocket::CTcpSocket(QObject *pParent) : QTcpSocket{pParent}, meState{Unverified_State}, msHostname{""}, mpInternalBuffer{new QByteArray()}
 {
     // Intentionally left blank.
 }
@@ -69,7 +69,11 @@ void CTcpSocket::SetHostname(std::string sHostname)
 
 void CTcpSocket::ReadData()
 {
-    QByteArray *pData = new QByteArray();
+    if (nullptr == mpInternalBuffer)
+    {
+        mpInternalBuffer = new QByteArray();
+        mpInternalBuffer->clear();
+    }
 
     bool bKeepReading = true;
     bool bFoundETX = false;
@@ -81,7 +85,6 @@ void CTcpSocket::ReadData()
             if (bFoundETX && cChar == CProtocol::ProtocolEOF()[1])
             {
                 bKeepReading = false;
-                break;
             }
             else
             {
@@ -92,9 +95,9 @@ void CTcpSocket::ReadData()
                 else
                 {
                     bFoundETX = false;
-                    pData->append(cChar);
                 }
             }
+            mpInternalBuffer->append(cChar);
         }
         else
         {
@@ -103,7 +106,12 @@ void CTcpSocket::ReadData()
         }
     }
 
-    if (!pData->isEmpty()) { emit DataInput(this, pData); }
+    if (!mpInternalBuffer->isEmpty() && mpInternalBuffer->endsWith("\x03\x04"))
+    {
+        mpInternalBuffer->remove(mpInternalBuffer->length()-2, 2);
+        emit DataInput(this, new QByteArray(*mpInternalBuffer));
+        mpInternalBuffer->clear();
+    }
 }
 
 u64 CTcpSocket::WriteData(QByteArray *pData)
