@@ -904,7 +904,7 @@ void CGame::Tick()
 
     if (nullptr != mpNetServer)
     {
-        mpNetServer->Broadcast(Heartbeat_Packet, new QByteArray("~$$HEARTBEAT"));
+//        mpNetServer->Broadcast(Heartbeat_Packet, new QByteArray("~$$HEARTBEAT"));
         mpNetServer->FlushAll();
     }
     else if (nullptr != mpNetClient)
