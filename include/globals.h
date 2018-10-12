@@ -83,9 +83,9 @@ typedef unsigned long long u64;
 
 #if !defined(VER_MAJOR)
 #define VER_MAJOR 0
-#define VER_MINOR 1
+#define VER_MINOR 2
 #define VER_PATCH 0
-#define VER_STAGE "IN-DEV"
+#define VER_STAGE "ALPHA"
 #endif //#if !defined(VER_MAJOR)
 
 // Enumerations.
