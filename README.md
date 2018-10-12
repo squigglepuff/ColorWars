@@ -3,7 +3,7 @@
 
 | Version | Dev. Stage | Language | Build System |
 |---------|------------|----------|--------------|
-| 0.1 r0  |   IN-DEV   |   C++14  |  QMake 5.x   |
+| 0.2 r0  |   ALPHA    |   C++14  |  QMake 5.x   |
 
 ![ColorWars Icon](/logo.png)
 
