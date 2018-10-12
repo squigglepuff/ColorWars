@@ -1,4 +1,4 @@
-#include "include/game.h"
+﻿#include "include/game.h"
 
 std::map<std::string, ECellColors> g_NameToColorMap = {
     std::pair<std::string, ECellColors>("White", Cell_White),
@@ -62,17 +62,8 @@ u32 CDice::GetLastRoll()
 
 
 // ================================ Begin CGame Implementation ================================ //
-CGame::CGame() : mbGamePlaying{false}, mCenter{SPoint(0,0)}, muCellSz{0}, mpDice{nullptr}, mpBoard{nullptr},
-    mpCanvas{nullptr}, muDiceMax{0xffffffff}, msTmpFileName{"colorwars_development.png"}, GameStarted{nullptr}, GameStopped{nullptr}
-{
-    if (msTmpFileName.find("_DEBUG") == std::string::npos && g_cfgVars.mbIsDebug)
-    {
-        msTmpFileName.insert(msTmpFileName.find_last_of("."), "_DEBUG");
-    }
-}
-
-CGame::CGame(const CGame& aCls) : mbGamePlaying{aCls.mbGamePlaying}, mCenter{aCls.mCenter}, muCellSz{aCls.muCellSz},
-    mpDice{aCls.mpDice}, mpBoard{aCls.mpBoard}, mpCanvas{aCls.mpCanvas}, muDiceMax{aCls.muDiceMax}, GameStarted{aCls.GameStarted}, GameStopped{aCls.GameStopped}
+CGame::CGame(QObject *pParent) : QObject{pParent}, mbGamePlaying{false}, mCenter{SPoint(0,0)}, muCellSz{0}, mpDice{nullptr}, mpBoard{nullptr},
+    mpCanvas{nullptr}, muDiceMax{0xffffffff}, msTmpFileName{"colorwars_development.png"}, mpNetServer{nullptr}, mpNetClient{nullptr}, mpTicker{nullptr}
 {
     if (msTmpFileName.find("_DEBUG") == std::string::npos && g_cfgVars.mbIsDebug)
     {
@@ -87,25 +78,9 @@ CGame::~CGame()
     {
         mpBoard->Destroy();
     }
-}
 
-CGame& CGame::operator=(const CGame& aCls)
-{
-    if (this != &aCls)
-    {
-        mbGamePlaying = aCls.mbGamePlaying;
-        mCenter = aCls.mCenter;
-        muCellSz = aCls.muCellSz;
-
-        mpDice = aCls.mpDice;
-        mpBoard = aCls.mpBoard;
-        muDiceMax = aCls.muDiceMax;
-
-        GameStarted = aCls.GameStarted;
-        GameStopped = aCls.GameStopped;
-    }
-
-    return *this;
+    if (nullptr != mpNetServer) { delete mpNetServer; }
+    if (nullptr != mpNetClient) { delete mpNetClient; }
 }
 
 void CGame::SetupGame(u32 iDiceMax, u32 uCellSz, SPoint qCenter)
@@ -156,9 +131,18 @@ void CGame::NewGame()
                 Draw();
 
                 mbGamePlaying = true;
-
-                if (nullptr != GameStarted) { GameStarted(); }
                 qInfo("Game has started!");
+
+                // Fire up the ticker.
+                mpTicker = new QTimer();
+                connect(mpTicker, &QTimer::timeout, [&]{
+                    qApp->processEvents();
+                    if (nullptr != mpNetServer)
+                    {
+                        mpNetServer->Broadcast(Heartbeat_Packet, new QByteArray("~$$HEARTBEAT"));
+                    }
+                });
+                mpTicker->start(c_miTickRate);
             }
             else
             {
@@ -180,14 +164,12 @@ void CGame::NewGame()
 void CGame::EndGame()
 {
     mbGamePlaying = false;
-
-    if (nullptr != GameStopped) { GameStopped(); }
     qInfo("Game has ended!");
 }
 
 void CGame::Play(ECellColors eAggressor, ECellColors eVictim)
 {
-    if (nullptr != mpDice && nullptr != mpBoard)
+    if (nullptr != mpDice && nullptr != mpBoard && nullptr == mpNetClient)
     {
         /* Determine the ranges we need to be in for movement amounts.
          * These are:
@@ -207,6 +189,7 @@ void CGame::Play(ECellColors eAggressor, ECellColors eVictim)
         // Check to see if we should move.
         if ((uSmallMvRange + uMidOfRange) >= uRoll && (uMidOfRange - uSmallMvRange) <= uRoll)
         {
+            std::pair<bool, QString> rtnData;
             if ((uMedMvRange + uMidOfRange) >= uRoll && (uMidOfRange - uMedMvRange) <= uRoll)
             {
                 if ((uLrgMvRange + uMidOfRange) >= uRoll && (uMidOfRange - uLrgMvRange) <= uRoll)
@@ -214,32 +197,60 @@ void CGame::Play(ECellColors eAggressor, ECellColors eVictim)
                     if (uMidOfRange == uRoll)
                     {
                         // Overtake! Move HUGE amount!
-                        std::pair<bool, QString> rtnData = MoveColor(eAggressor, eVictim, 0);
-                        if (rtnData.first) { qInfo(rtnData.second.toStdString().c_str()); }
-                        else { qCritical(rtnData.second.toStdString().c_str()); }
+                        rtnData = MoveColor(eAggressor, eVictim, 0);
                     }
                     else
                     {
                         // Move large amount!
-                        std::pair<bool, QString> rtnData = MoveColor(eAggressor, eVictim, 7);
-                        if (rtnData.first) { qInfo(rtnData.second.toStdString().c_str()); Draw(); }
-                        else { qCritical(rtnData.second.toStdString().c_str()); }
+                        rtnData = MoveColor(eAggressor, eVictim, 7);
                     }
                 }
                 else
                 {
                     // Move medium amount!
-                    std::pair<bool, QString> rtnData = MoveColor(eAggressor, eVictim, 5);
-                    if (rtnData.first) { qInfo(rtnData.second.toStdString().c_str()); Draw(); }
-                    else { qCritical(rtnData.second.toStdString().c_str()); }
+                    rtnData = MoveColor(eAggressor, eVictim, 5);
                 }
             }
             else
             {
                 // Move small amount!
-                std::pair<bool, QString> rtnData = MoveColor(eAggressor, eVictim, 3);
-                if (rtnData.first) { qInfo(rtnData.second.toStdString().c_str()); Draw(); }
-                else { qCritical(rtnData.second.toStdString().c_str()); }
+                rtnData = MoveColor(eAggressor, eVictim, 3);
+            }
+
+            if (rtnData.first)
+            {
+                qInfo("%s", rtnData.second.toStdString().c_str());
+
+                rtnData.second.prepend("[Info]: ");
+                if (nullptr != mpNetServer)
+                {
+                    // Update the client boards.
+                    std::map<u64, ECellColors> mBoardMap;
+                    std::map<u64, CCell*> mCellMap = mpBoard->GetCellMap();
+
+                    for (std::map<u64,CCell*>::iterator pIter = mCellMap.begin(); pIter != mCellMap.end(); ++pIter)
+                    {
+                        std::pair<u64,CCell*> lMappedCell = (*pIter);
+
+                        if (nullptr != lMappedCell.second && mmOldBoardMap[lMappedCell.first] != lMappedCell.second->GetColor())
+                        {
+                            mBoardMap.insert(std::pair<u64, ECellColors>(lMappedCell.first, lMappedCell.second->GetColor()));
+                            mmOldBoardMap[lMappedCell.first] = lMappedCell.second->GetColor();
+                        }
+                    }
+
+                    mpNetServer->Broadcast(Update_Packet, PackBoardMap(mBoardMap));
+                    mpNetServer->Broadcast(Log_Packet, new QByteArray(rtnData.second.toLatin1()));
+                }
+            }
+            else
+            {
+                qCritical("%s", rtnData.second.toStdString().c_str());
+                if (nullptr != mpNetServer)
+                {
+                    rtnData.second.prepend("[Error]: ");
+                    mpNetServer->Broadcast(Log_Packet, new QByteArray(rtnData.second.toLatin1()));
+                }
             }
         }
 
@@ -247,13 +258,23 @@ void CGame::Play(ECellColors eAggressor, ECellColors eVictim)
         char* pMsg = new char[ciBuffSz];
         memset(pMsg, 0, ciBuffSz);
         snprintf(pMsg, ciBuffSz, "You rolled a %u! [needed %u - %u].", uRoll, (uMidOfRange - uSmallMvRange), (uSmallMvRange + uMidOfRange));
-        qInfo(pMsg);
+        qInfo("%s", pMsg);
         delete[] pMsg;
 
         // Check if there is only 1 color.
         if (1 == mvNations.size())
         {
-            qInfo(QString("%1 has won!").arg(g_ColorNameMap[mvNations[0]->GetNationColor()]).toStdString().c_str());
+            std::string sMsg = g_ColorNameMap[mvNations[0]->GetNationColor()].toStdString();
+            sMsg.append(" has won!");
+
+            qInfo("%s", sMsg.c_str());
+
+            sMsg.insert(0, "[Info]: ");
+            if (nullptr != mpNetServer)
+            {
+                mpNetServer->Broadcast(Log_Packet, new QByteArray(sMsg.c_str()));
+            }
+
             Draw();
             EndGame();
         }
@@ -269,6 +290,87 @@ void CGame::Destroy()
         mpBoard->Destroy();
         delete mpBoard;
     }
+}
+
+bool CGame::ConnectToGame(QString lAddr, u16 lPort)
+{
+    bool bSuccess = false;
+
+    if (nullptr == mpNetServer)
+    {
+        if (nullptr == mpNetClient)
+        {
+            mpNetClient = new CClient(this);
+            bSuccess = mpNetClient->Connect(lAddr.toStdString(), lPort);
+
+            if (bSuccess) { connect(mpNetClient, &CClient::UpdateBoard, this, &CGame::Net_UpdateBoard); }
+            else { qCritical("Connection FAILED!"); }
+        }
+        else
+        {
+            qCritical("You're currently connected to a server! You need to disconnect before connecting to a new one.");
+        }
+    }
+    else
+    {
+        qCritical("You're currently running a server! You need to close it before connecting to an external one.");
+    }
+
+    return bSuccess;
+}
+
+bool CGame::LaunchServer(QString lAddr, u16 lPort)
+{
+    bool bSuccess = false;
+
+    if (IsSetup())
+    {
+        if (nullptr == mpNetClient)
+        {
+            if (nullptr == mpNetServer)
+            {
+                mpNetServer = new CServer(this);
+                bSuccess = mpNetServer->Setup(lAddr.toStdString(), lPort);
+
+                if (bSuccess)
+                {
+                    connect(mpNetServer, &CServer::NewClientVerified, [&](u32 uClient){
+                        std::map<u64, ECellColors> mBoardMap;
+                        std::map<u64, CCell*> mCellMap = mpBoard->GetCellMap();
+
+                        for (std::map<u64,CCell*>::iterator pIter = mCellMap.begin(); pIter != mCellMap.end(); ++pIter)
+                        {
+                            std::pair<u64,CCell*> lMappedCell = (*pIter);
+                            mBoardMap.insert(std::pair<u64, ECellColors>(lMappedCell.first, lMappedCell.second->GetColor()));
+                        }
+
+                        mpNetServer->Transmit(uClient, Update_Packet, PackBoardMap(mBoardMap));
+                        mmOldBoardMap = mBoardMap;
+                    });
+
+                    connect(mpNetServer, &CServer::SendCommand, this, &CGame::ProcessCommand);
+                }
+                else
+                {
+                    qCritical("Unable to start server!");
+                }
+            }
+            else
+            {
+                qCritical("You're currently running a server! You need to close it before relaunching one.");
+            }
+        }
+        else
+        {
+            qCritical("You're currently connected to a server! You need to disconnect before launching your own.");
+        }
+    }
+    else
+    {
+        qCritical("Refusing to launch a server on a non-existant game!");
+    }
+
+    return bSuccess;
 }
 
 std::pair<bool, QString> CGame::MoveColor(ECellColors eAggressor, ECellColors eVictim, u32 uMvAmnt)
@@ -361,8 +463,11 @@ void CGame::Draw()
 
         if (nullptr != pPainter) { delete pPainter; }
 
-        // Save the image.
-        mpCanvas->save(QString::fromStdString(msTmpFileName));
+        if (nullptr == mpNetClient)
+        {
+            // Save the image.
+            mpCanvas->save(QString::fromStdString(msTmpFileName));
+        }
     }
 }
 
@@ -427,7 +532,7 @@ bool CGame::IsPlaying()
 
 bool CGame::IsSetup()
 {
-    return (nullptr != mpDice && nullptr != mpBoard);
+    return (nullptr != mpDice && nullptr != mpBoard && 0 < mpBoard->GetCellMap().size());
 }
 
 u32 CGame::GetDiceMax()
@@ -448,16 +553,6 @@ QImage* CGame::GetCanvas()
 void CGame::SetDiceMax(u32 iMaxium)
 {
     muDiceMax = iMaxium;
-}
-
-void CGame::SetStartedCallback(void (*fxnCallback)())
-{
-    GameStarted = fxnCallback;
-}
-
-void CGame::SetStoppedCallback(void (*fxnCallback)())
-{
-    GameStopped = fxnCallback;
 }
 
 void CGame::SetCellSize(u32 uCellSz)
@@ -544,4 +639,269 @@ u32 CGame::DoInfectionFill(CNation* aAggrNation, CNation* aVictimNation, u32 uMv
 
     return uCellsTaken;
 }
+
+void CGame::ProcessCommand(SCommand lCmd)
+{
+    std::string sCmd = "";
+    switch (lCmd.meCmd)
+    {
+        case Cmd_NewGame:
+        {
+            if (!IsPlaying())
+            {
+                NewGame();
+            }
+            else
+            {
+                qCritical("Refusing to start an already playing game!");
+            }
+            sCmd = "New Game";
+            break;
+        }
+        case Cmd_PlayGame:
+        {
+            if (IsSetup())
+            {
+                mbGamePlaying = true;
+            }
+            else
+            {
+                qCritical("Unable to play an empty game! Please run \"!new\".");
+            }
+            sCmd = "Play Game";
+            break;
+        }
+        case Cmd_StopGame:
+        {
+            if (IsPlaying())
+            {
+                mbGamePlaying = false;
+                EndGame();
+            }
+            sCmd = "Stop Game";
+            break;
+        }
+        case Cmd_Move:
+        {
+            // Does nothing for now!
+            if (0 < lCmd.mvArgs.size())
+            {
+                if (nullptr != mpNetClient)
+                {
+                    QByteArray *pCmdStr = new QByteArray("!move ");
+
+                    for (size_t iIdx = 0; lCmd.mvArgs.size() > iIdx; ++iIdx)
+                    {
+                        pCmdStr->append(lCmd.mvArgs[iIdx].c_str());
+                        pCmdStr->append(" ");
+                    }
+
+                    mpNetClient->Transmit(Command_Packet, pCmdStr);
+
+                    delete pCmdStr;
+                }
+                else
+                {
+                    if (lCmd.msSender.empty() && nullptr != mpNetServer)
+                    {
+                        lCmd.msSender = QHostInfo().hostName().toStdString();
+                    }
+                    else if (lCmd.msSender.empty() && nullptr == mpNetServer)
+                    {
+                        lCmd.msSender = "You";
+                    }
+
+                    // Grab the two arguments and make sure they're valid.
+                    QString sTmp = QString::fromStdString(lCmd.mvArgs[0]);
+                    sTmp = sTmp.toLower(); // Lower-case it.
+                    sTmp[0] = sTmp[0].toLatin1() - ' '; // Capitalize the first letter.
+                    std::string lAggr = sTmp.toStdString();
+
+                    std::string lVictim = "White";
+                    if (!NationExists(Cell_White))
+                    {
+                        sTmp = QString::fromStdString(lCmd.mvArgs[1]);
+                        sTmp = sTmp.toLower(); // Lower-case it.
+                        sTmp[0] = sTmp[0].toLatin1() - ' '; // Capitalize the first letter.
+                        lVictim = sTmp.toStdString();
+                    }
+                    else
+                    {
+                        qWarning("White still exists, so we're gonna attack them instead.");
+                    }
+
+                    if (g_NameToColorMap.end() != g_NameToColorMap.find(lAggr) && g_NameToColorMap.end() != g_NameToColorMap.find(lVictim))
+                    {
+                        Play(g_NameToColorMap[lAggr], g_NameToColorMap[lVictim]);
+                        if (nullptr != mpNetServer)
+                        {
+                            std::string sMsg = "[Info]: ";
+                            sMsg.append(lCmd.msSender);
+                            sMsg.append(" attempted to move ");
+                            sMsg.append(lAggr);
+                            sMsg.append(", attacking ");
+                            sMsg.append(lVictim);
+
+                            mpNetServer->Broadcast(Log_Packet, new QByteArray(sMsg.c_str()));
+                        }
+                    }
+                    else if (g_NameToColorMap.end() == g_NameToColorMap.find(lAggr) && g_NameToColorMap.end() != g_NameToColorMap.find(lVictim))
+                    {
+                        std::string lMsg = "Your nation (";
+                        lMsg.append(lAggr);
+                        lMsg.append(") doesn't exist!");
+                        qCritical("%s", lMsg.c_str());
+
+                        if (nullptr != mpNetServer) { lMsg.insert(0, "[Error]: "); mpNetServer->Transmit(lCmd.muSenderID, Log_Packet, new QByteArray(lMsg.c_str())); }
+                    }
+                    else if (g_NameToColorMap.end() != g_NameToColorMap.find(lAggr) && g_NameToColorMap.end() == g_NameToColorMap.find(lVictim))
+                    {
+                        std::string lMsg = "Their nation (";
+                        lMsg.append(lVictim);
+                        lMsg.append(") doesn't exist!");
+                        qCritical("%s", lMsg.c_str());
+
+                        if (nullptr != mpNetServer) { lMsg.insert(0, "[Error]: "); mpNetServer->Transmit(lCmd.muSenderID, Log_Packet, new QByteArray(lMsg.c_str())); }
+                    }
+                    else
+                    {
+                        qCritical("Neither nation exists!");
+
+                        if (nullptr != mpNetServer) { mpNetServer->Transmit(lCmd.muSenderID, Log_Packet, new QByteArray("[Error]: Neither nation exists!")); }
+                    }
+
+                    // Send a redraw command.
+                    ProcessCommand(SCommand(Cmd_Redraw));
+                }
+            }
+
+            sCmd = "Move";
+            break;
+        }
+        case Cmd_Redraw:
+        {
+            Draw();
+            emit SendGUI_Redraw();
+
+            sCmd = "Redraw";
+            break;
+        }
+        case Cmd_Help:
+        {
+            qInfo("Discord Commands:\n"
+                  "!move <color1> <color2>  -  Move a color1 to color2.\n"
+                  "!new     -  Run a new game.\n"
+                  "!redraw  -  Redraw the board.\n"
+                  "!stats <color>  -  Give a color nation's stats.\n\n"
+                  "CLI Commands:\n"
+                  "/auto   -  Auto-Play the current game.\n"
+                  "/connect <ip> <port> -  Connect to a server.\n"
+                  "/help   -  Show this help.\n"
+                  "/quit   -  Quits the application.\n"
+                  "/server -  Setup a LAN server. (Can take a binding address and port)\n"
+                  "/stop   -  Stop/End the current game.");
+            sCmd = "Help";
+            break;
+        }
+        case Cmd_Quit:
+        {
+            emit SendGUI_Quit();
+            sCmd = "Close Application";
+            break;
+        }
+        case Cmd_Stats:
+        {
+            if (0 < lCmd.mvArgs.size())
+            {
+                // Locate the nation's color.
+                // g_NameToColorMap
+                QString sClr = QString::fromStdString(lCmd.mvArgs[0]);
+                sClr = sClr.toLower(); // Lower-case it.
+                sClr[0] = sClr[0].toLatin1() - ' '; // Capitalize the first letter.
+
+                PrintNationStats(g_NameToColorMap[sClr.toStdString()]);
+            }
+            sCmd = "Nation Stats";
+            break;
+        }
+        case Cmd_ConnectToServer:
+        {
+            if (1 <= lCmd.mvArgs.size())
+            {
+                std::string sSvrAddr = lCmd.mvArgs[0];
+                u16 uSvrPort = 30113;
+
+                if (2 <= lCmd.mvArgs.size()) { uSvrPort = QString::fromStdString(lCmd.mvArgs[1]).toUShort(); }
+
+                ConnectToGame(QString::fromStdString(sSvrAddr), uSvrPort);
+            }
+            else
+            {
+                qCritical("Not enough arguments for /connect! Check /help for more info.");
+            }
+
+            sCmd = "Connect to Server";
+            break;
+        }
+        case Cmd_SetupServer:
+        {
+            std::string sSvrAddr = "0.0.0.0";
+            u16 uSvrPort = 30113;
+
+            if (1 <= lCmd.mvArgs.size()) { sSvrAddr = lCmd.mvArgs[0]; }
+            if (2 <= lCmd.mvArgs.size()) { uSvrPort = QString::fromStdString(lCmd.mvArgs[1]).toUShort(); }
+
+            LaunchServer(QString::fromStdString(sSvrAddr), uSvrPort);
+
+            sCmd = "Server CMD";
+            break;
+        }
+        default:
+        {
+            qCritical("Unknown or Invalid command! See \"/help\".");
+            sCmd = "UNKNOWN/INVLAID";
+            break;
+        }
+    }
+
+    emit SendGUI_Command(sCmd.c_str());
+}
+
+void CGame::Net_UpdateBoard(std::map<u64, ECellColors> lClrMap)
+{
+    if (IsSetup())
+    {
+        qInfo("Received color map from server, updating board...");
+        std::map<u64, CCell*> mCellMap = mpBoard->GetCellMap();
+        for (std::map<u64,ECellColors>::iterator pIter = lClrMap.begin(); pIter != lClrMap.end(); ++pIter)
+        {
+            std::pair<u64,ECellColors> lMappedCell = (*pIter);
+            if (nullptr != mCellMap[lMappedCell.first])
+            {
+                CNation* pCurrent = mpBoard->ColorToNation(mCellMap[lMappedCell.first]->GetColor());
+                CNation* pNew = mpBoard->ColorToNation(lMappedCell.second);
+
+                if (nullptr != pCurrent && nullptr != pNew && pCurrent != pNew)
+                {
+                    pCurrent->Remove(lMappedCell.first);
+                    pNew->Add(lMappedCell.first);
+                    mCellMap[lMappedCell.first]->SetColor(lMappedCell.second);
+                }
+            }
+        }
+        qInfo("Successfully updated board!");
+    }
+    else
+    {
+        qInfo("Setting up board [server]...");
+        NewGame();
+        qInfo("Successfully setup board!");
+
+        Net_UpdateBoard(lClrMap);
+    }
+
+    // Send a redraw command.
+    ProcessCommand(SCommand(Cmd_Redraw));
+}
+
 // ================================ End CGame Implementation ================================ //

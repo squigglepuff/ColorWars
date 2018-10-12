@@ -42,6 +42,9 @@ public:
     std::vector<CCell*> GetCellNeighbors(u32 uCombIdx = 0, u32 uCellIdx = 0);
 
     std::vector<CNation*> GetNationList();
+    std::map<u64, CCell*> GetCellMap();
+
+    CNation* ColorToNation(ECellColors eColor);
 
     // Setters.
     void SetBoardSize(u32 uSz = 2);

@@ -1,9 +1,21 @@
 #ifndef GLOBALS_H
 #define GLOBALS_H
 
+//#pragma once // Prevent multiple declarations and definitions.
+
 // Qt Headers.
+#include <QApplication>
+#include <QDateTime>
+#include <QSysInfo>
 #include <QString>
 #include <QDir>
+
+// Qt Networking modules.
+#include <QtNetwork/QNetworkInterface>
+#include <QtNetwork/QHostAddress>
+#include <QtNetwork/QHostInfo>
+#include <QtNetwork/QTcpSocket>
+#include <QtNetwork/QTcpServer>
 
 // C++ Standard headers.
 #include <math.h>
@@ -13,6 +25,10 @@
 #include <iostream>
 #include <fstream>
 #include <csignal>
+#include <type_traits>
+#include <cctype>
+#include <typeinfo>
+#include <queue>
 
 // System Sizes.
 #if !defined(WORD_SZ)
@@ -92,6 +108,7 @@ enum ECellColors
     Cell_Gray = 0xc00d,
     Comb_Mixed = 0xcff1 //!< Only used by honeycombs and not individual cells!
 };
+#endif // #if !defined(_CELL_COLORS)
 
 enum ECommand
 {
@@ -104,6 +121,8 @@ enum ECommand
     Cmd_Help,
     Cmd_Quit,
     Cmd_Stats,
+    Cmd_ConnectToServer,
+    Cmd_SetupServer,
     Cmd_Unknown
 };
 
@@ -135,8 +154,11 @@ struct SCommand
 {
     ECommand meCmd;
     std::vector<std::string> mvArgs;
+    std::string msSender;
+    u32 muSenderID;
 
-    SCommand(ECommand eCmd = Cmd_Redraw, std::vector<std::string> vArgs = {}) : meCmd{eCmd}, mvArgs{vArgs} { /* Intentionally left blank. */ }
+    SCommand(ECommand eCmd = Cmd_Redraw, std::vector<std::string> vArgs = {}, std::string sSender = "", u32 uSenderID = 0) : meCmd{eCmd}, mvArgs{vArgs}, msSender{sSender}, muSenderID{uSenderID}
+    { /* Intentionally left blank. */ }
 };
 
 // External functions and variables.
@@ -144,6 +166,7 @@ extern std::map<ECellColors, QString> g_ColorNameMap;
 extern std::map<std::string, ECellColors> g_NameToColorMap;
 extern CfgVars g_cfgVars;
 
-#endif // #if !defined(_CELL_COLORS)
+extern SCommand ParseCommandString(QString lStr, std::string sSender = "", u32 uSenderID = 0);
+extern void HandleNetLogging(std::string lMsg);
 
 #endif // GLOBALS_H

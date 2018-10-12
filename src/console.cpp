@@ -21,70 +21,7 @@ void CConsole::keyReleaseEvent(QKeyEvent *event)
             QString lStr = mpCmdPrompt->text();
             mpCmdPrompt->clear();
 
-            // Chop off the front element as it's the actual command.
-            SCommand lCmd;
-
-            QString lCmdStr = lStr;
-            if (lStr.contains(' '))
-            {
-                lCmdStr = lStr.mid(0, lStr.indexOf(' '));
-                lStr.remove(0, lStr.indexOf(' ')+1);
-
-                while (!lStr.isEmpty())
-                {
-                    if (lStr.contains(' '))
-                    {
-                        lCmd.mvArgs.push_back(lStr.mid(0, lStr.indexOf(' ')).toStdString());
-                        lStr.remove(0, lStr.indexOf(' ')+1);
-                    }
-                    else
-                    {
-                        lCmd.mvArgs.push_back(lStr.toStdString());
-                        break;
-                    }
-                }
-            }
-
-            if (0 == lCmdStr.compare("!new", Qt::CaseInsensitive))
-            {
-                lCmd.meCmd = Cmd_NewGame;
-            }
-            else if (0 == lCmdStr.compare("/auto", Qt::CaseInsensitive))
-            {
-                lCmd.meCmd = Cmd_PlayGame;
-            }
-            else if (0 == lCmdStr.compare("/pause", Qt::CaseInsensitive))
-            {
-                lCmd.meCmd = Cmd_PauseGame;
-            }
-            else if (0 == lCmdStr.compare("/stop", Qt::CaseInsensitive))
-            {
-                lCmd.meCmd = Cmd_StopGame;
-            }
-            else if (0 == lCmdStr.compare("!move", Qt::CaseInsensitive))
-            {
-                lCmd.meCmd = Cmd_Move;
-            }
-            else if (0 == lCmdStr.compare("!redraw", Qt::CaseInsensitive))
-            {
-                lCmd.meCmd = Cmd_Redraw;
-            }
-            else if (0 == lCmdStr.compare("/help", Qt::CaseInsensitive))
-            {
-                lCmd.meCmd = Cmd_Help;
-            }
-            else if (0 == lCmdStr.compare("/quit", Qt::CaseInsensitive))
-            {
-                lCmd.meCmd = Cmd_Quit;
-            }
-            else if (0 == lCmdStr.compare("!stats", Qt::CaseInsensitive))
-            {
-                lCmd.meCmd = Cmd_Stats;
-            }
-            else
-            {
-                lCmd.meCmd = Cmd_Unknown;
-            }
+            SCommand lCmd = ParseCommandString(lStr);
 
             emit Command(lCmd);
         }
@@ -153,4 +90,84 @@ void CConsole::NewLog(QString sLine)
         }
         mpLog->scrollToBottom();
     }
+}
+
+SCommand ParseCommandString(QString lStr, std::__cxx11::string sSender, u32 uSenderID)
+{
+    // Chop off the front element as it's the actual command.
+    SCommand lCmd;
+    lCmd.msSender = sSender;
+    lCmd.muSenderID = uSenderID;
+
+    QString lCmdStr = lStr;
+    if (lStr.contains(' '))
+    {
+        lCmdStr = lStr.mid(0, lStr.indexOf(' '));
+        lStr.remove(0, lStr.indexOf(' ')+1);
+
+        while (!lStr.isEmpty())
+        {
+            if (lStr.contains(' '))
+            {
+                lCmd.mvArgs.push_back(lStr.mid(0, lStr.indexOf(' ')).toStdString());
+                lStr.remove(0, lStr.indexOf(' ')+1);
+            }
+            else
+            {
+                lCmd.mvArgs.push_back(lStr.toStdString());
+                break;
+            }
+        }
+    }
+
+    if (0 == lCmdStr.compare("!move", Qt::CaseInsensitive))
+    {
+        lCmd.meCmd = Cmd_Move;
+    }
+    else if (0 == lCmdStr.compare("!new", Qt::CaseInsensitive))
+    {
+        lCmd.meCmd = Cmd_NewGame;
+    }
+    else if (0 == lCmdStr.compare("!redraw", Qt::CaseInsensitive))
+    {
+        lCmd.meCmd = Cmd_Redraw;
+    }
+    else if (0 == lCmdStr.compare("!stats", Qt::CaseInsensitive))
+    {
+        lCmd.meCmd = Cmd_Stats;
+    }
+    else if (0 == lCmdStr.compare("/auto", Qt::CaseInsensitive))
+    {
+        lCmd.meCmd = Cmd_PlayGame;
+    }
+    else if (0 == lCmdStr.compare("/connect", Qt::CaseInsensitive))
+    {
+        lCmd.meCmd = Cmd_ConnectToServer;
+    }
+    else if (0 == lCmdStr.compare("/help", Qt::CaseInsensitive))
+    {
+        lCmd.meCmd = Cmd_Help;
+    }
+    else if (0 == lCmdStr.compare("/pause", Qt::CaseInsensitive))
+    {
+        lCmd.meCmd = Cmd_PauseGame;
+    }
+    else if (0 == lCmdStr.compare("/quit", Qt::CaseInsensitive))
+    {
+        lCmd.meCmd = Cmd_Quit;
+    }
+    else if (0 == lCmdStr.compare("/server", Qt::CaseInsensitive))
+    {
+        lCmd.meCmd = Cmd_SetupServer;
+    }
+    else if (0 == lCmdStr.compare("/stop", Qt::CaseInsensitive))
+    {
+        lCmd.meCmd = Cmd_StopGame;
+    }
+    else
+    {
+        lCmd.meCmd = Cmd_Unknown;
+    }
+
+    return lCmd;
 }

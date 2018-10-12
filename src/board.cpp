@@ -326,6 +326,11 @@ std::vector<CNation *> CBoard::GetNationList()
     return mvNations;
 }
 
+std::map<u64, CCell*> CBoard::GetCellMap()
+{
+    return mmCellMap;
+}
+
 std::vector<CCell*> CBoard::GetCellNeighbors(u64 uCellID)
 {
     std::vector<CCell*> vNeighbors;
@@ -427,6 +432,22 @@ std::vector<CCell*> CBoard::GetCellNeighbors(CHoneyComb* pComb, u32 uCellIdx)
 std::vector<CCell*> CBoard::GetCellNeighbors(u32 uCombIdx, u32 uCellIdx)
 {
     return GetCellNeighbors(GetComb(uCombIdx), uCellIdx);
+}
+
+CNation* CBoard::ColorToNation(ECellColors eColor)
+{
+    CNation* pNat = nullptr;
+    for (std::vector<CNation*>::iterator iNatIter = mvNations.begin(); iNatIter != mvNations.end(); ++iNatIter)
+    {
+        CNation* pNation = (*iNatIter);
+        if (nullptr != pNation && pNation->GetNationColor() == eColor)
+        {
+            pNat = pNation;
+            break;
+        }
+    }
+
+    return pNat;
 }
 
 /*!

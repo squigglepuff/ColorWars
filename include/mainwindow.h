@@ -24,37 +24,21 @@ public:
     void Setup();
 
     void SetGamePtr(CGame* pGame = nullptr);
-    void SetTickPtr(QTimer* pTimer = nullptr);
 
     void UpdateLog(QString lMsg);
 
 protected:
     void paintEvent(QPaintEvent *apEvent);
-    void contextMenuEvent(QContextMenuEvent *apEvent);
 
 public slots:
-    void startGame(bool);
-    void playGame(bool);
-    void pauseGame(bool);
-    void stopGame(bool);
-
-    void RunCommand(SCommand aCmd);
+    void RunCommand(const char* sCmd);
 
 private:
     void SetupUI();
 
     CGame *mpGame;
-    QTimer *mpTicker;
-    QImage *mpCanvas;
-
-    CConsole *mpConsole;
-
-    // GUI elements.
     QLabel* mpGameCanvas;
-    QListWidget *mpChatLog;
-    QList<QAction*> mlActions;
+    CConsole *mpConsole;
 };
-
-extern QList<QString> g_LogList;
 
 #endif // MAINWINDOW_H

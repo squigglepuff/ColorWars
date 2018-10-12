@@ -5,6 +5,9 @@
 #include "include/nation.h"
 #include "include/board.h"
 
+// For networking support.
+#include "include/network/network.h"
+
 /*!
  * \brief The CDice class
  *
@@ -41,14 +44,12 @@ private:
  *
  * The color movement algorithm is a "fill" algorithm, the logic will attempt to fill the current honeycomb and then expand into another hexagon.
  */
-class CGame
+class CGame : public QObject
 {
+    Q_OBJECT
 public:
-    CGame();
-    CGame(const CGame& aCls);
+    explicit CGame(QObject *pParent = nullptr);
     virtual ~CGame();
-
-    CGame& operator=(const CGame& aCls);
 
     // Workers.
     void SetupGame(u32 iDiceMax = 0xffffffff, u32 uCellSz = 128, SPoint qCenter = SPoint(1024, 1024));
@@ -56,6 +57,9 @@ public:
     void Play(ECellColors eAggressor, ECellColors eVictim);
     void EndGame();
     void Destroy();
+
+    bool ConnectToGame(QString lAddr = "127.0.0.1", u16 lPort = 30113);
+    bool LaunchServer(QString lAddr = "127.0.0.1", u16 lPort = 30113);
 
     std::pair<bool, QString> MoveColor(ECellColors eAggressor, ECellColors eVictim, u32 uMvAmnt = 3);
 
@@ -78,11 +82,17 @@ public:
     // Setters.
     void SetDiceMax(u32 iMaxium = 0xffffffff);
 
-    void SetStartedCallback(void (*fxnCallback)());
-    void SetStoppedCallback(void (*fxnCallback)());
-
     void SetCellSize(u32 uCellSz);
     void SetCanvasCenter(SPoint aPt);
+
+public slots:
+    void ProcessCommand(SCommand lCmd);
+    void Net_UpdateBoard(std::map<u64, ECellColors> lClrMap);
+
+signals:
+    void SendGUI_Command(const char* sCmdName = "Not SET!");
+    void SendGUI_Quit();
+    void SendGUI_Redraw();
 
 private:
     u32 DoFloodFill(CNation* aAggrNation, CNation* aVictimNation, u32 uMvAmnt);
@@ -99,8 +109,14 @@ private:
     u32 muDiceMax; //!< The maximum roll amount for a dice "throw".
     std::string msTmpFileName; //!< Temporary filename for the image to write to.
 
-    void (*GameStarted)();
-    void (*GameStopped)();
+    std::map<u64, ECellColors> mmOldBoardMap;
+
+    CServer *mpNetServer;
+    CClient *mpNetClient;
+
+    QTimer *mpTicker;
+
+    const int c_miTickRate = (30 / 1000); // 30-frames per second.
 };
 
 #endif // GAME_H

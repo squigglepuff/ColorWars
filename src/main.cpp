@@ -1,13 +1,9 @@
 #include "include/mainwindow.h"
-#include <QApplication>
-#include <QDateTime>
-#include <QSysInfo>
 
 std::map<ECellColors, QString> g_ColorNameMap;
 CfgVars g_cfgVars;
 
 CGame *mpGame;
-QTimer *mpTicker;
 CMainWindow *pMainWnd;
 
 // Logging.
@@ -118,6 +114,20 @@ void HandleQLogging(QtMsgType type, const QMessageLogContext &context, const QSt
     }
 }
 
+void HandleNetLogging(std::string lMsg)
+{
+    if (!lMsg.empty())
+    {
+        std::cout<< lMsg<< std::endl;
+        l_logStream<< QDateTime::currentDateTimeUtc().toString("yyyy-dd-MM hh:mm:ss.z t").toStdString()<< " "<< lMsg<< std::endl;
+
+        if (nullptr != pMainWnd)
+        {
+            pMainWnd->UpdateLog(QString::fromStdString(lMsg));
+        }
+    }
+}
+
 void OpenLogAndPrintHeader()
 {
     // Open the log.
@@ -190,60 +200,6 @@ char* UpdateProcName(char* pCurrName)
     return pNewName;
 }
 
-// -------------------------------- BEGIN GAME LOOP -------------------------------- //
-void RunGame(CMainWindow* pWnd = nullptr)
-{
-    if (nullptr != mpGame && mpGame->IsPlaying())
-    {
-        // Here we would POLL any network sockets.
-
-        // Here we would apply results from the POLL to the game as needed.
-
-        if (nullptr != pWnd) { pWnd->repaint(); }
-    }
-}
-
-void AutoGame(CMainWindow* pWnd = nullptr)
-{
-    if (nullptr != mpGame && mpGame->IsPlaying())
-    {
-        std::vector<ECellColors> vRandClr = {Cell_Red, Cell_Orange, Cell_Yellow, Cell_Lime, Cell_Green,
-                                             Cell_Cyan, Cell_Blue, Cell_Purple, Cell_Magenta, Cell_Pink,
-                                             Cell_Brown, Cell_Gray};
-
-        ECellColors eAggressor = Cell_Red;
-        ECellColors eVictim = Cell_White;
-        do
-        {
-            u32 uRand = floor(rand());
-            u32 uRandIdx = uRand % vRandClr.size();
-            eAggressor = vRandClr[uRandIdx];
-        }while (!mpGame->NationExists(eAggressor));
-
-        do
-        {
-            u32 uRand = floor(rand());
-            u32 uRandIdx = uRand % vRandClr.size();
-            eVictim = (mpGame->NationExists(Cell_White)) ? Cell_White : vRandClr[uRandIdx];
-        }while (!mpGame->NationExists(eVictim));
-
-//        eAggressor = Cell_Green;
-
-        mpGame->Play(eAggressor, eVictim);
-
-        if (nullptr != pWnd) { pWnd->repaint(); }
-    }
-}
-
-void StopGameTimer()
-{
-    if (nullptr != mpTicker)
-    {
-        mpTicker->stop();
-    }
-}
-// -------------------------------- END GAME LOOP -------------------------------- //
-
 int main(int argc, char *argv[])
 {
     bool bUseGui = true;
@@ -310,17 +266,10 @@ int main(int argc, char *argv[])
         mpGame->SetCellSize(uCellSz);
         mpGame->SetCanvasCenter(lCenter);
 
-        mpTicker = new QTimer();
-        mpTicker->connect(mpTicker, &QTimer::timeout, [&]{ AutoGame(pMainWnd); });
-
-        // Setup the game callbacks.
-        mpGame->SetStoppedCallback(&StopGameTimer);
-
         if (bUseGui)
         {
             qInstallMessageHandler(HandleQLoggingGUI);
             pMainWnd->SetGamePtr(mpGame);
-            pMainWnd->SetTickPtr(mpTicker);
             pMainWnd->Setup();
             pMainWnd->show();
         }
